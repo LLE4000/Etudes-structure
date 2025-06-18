@@ -3,18 +3,26 @@ from datetime import datetime
 import json
 
 def show():
-    # Titre et bouton Accueil côte à côte
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        st.markdown("## Poutre en béton armé")
-    with col2:
-        st.button("🏠 Accueil", key="retour_accueil_poutre", on_click=lambda: st.session_state.update(page="Accueil"))
+    # Titre et bouton Accueil parfaitement alignés
+    st.markdown("""
+        <div style='display: flex; justify-content: space-between; align-items: center;'>
+            <h2 style='margin: 0;'>Poutre en béton armé</h2>
+            <form action='#' method='post'>
+                <button type='submit' name='accueil' style='padding: 0.4em 1em; font-size: 1em; border-radius: 0.4em; border: none; background-color: #444; color: white; cursor: pointer;'>🏠 Accueil</button>
+            </form>
+        </div>
+    """, unsafe_allow_html=True)
 
-    # Charger la base béton
+    # Détection du bouton HTML "Accueil"
+    if "accueil" in st.experimental_get_query_params():
+        st.session_state.page = "Accueil"
+        st.experimental_rerun()
+
+    # Chargement de la base de données béton
     with open("beton_classes.json", "r") as f:
         beton_data = json.load(f)
 
-    # Bouton réinitialisation
+    # Bouton de réinitialisation avec clé unique
     if st.button("🔄 Réinitialiser", key="reset_poutre"):
         st.rerun()
 
