@@ -1,18 +1,18 @@
 import streamlit as st
-from modules import accueil, poutre, dalle, profile
+from modules import accueil, poutre, dalle, profile, tableau_armatures, recouvrement, choix_profile, flambement, tableau_profiles
 
-# Configuration : plein écran et sidebar masquée
+# Configuration
 st.set_page_config(
     page_title="Études Structure",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Gestion de l'état de la page
+# Page d'accueil par défaut
 if "page" not in st.session_state:
     st.session_state.page = "Accueil"
 
-# Affichage du contenu selon la page choisie
+# Affichage dynamique
 if st.session_state.page == "Accueil":
     accueil.show()
 elif st.session_state.page == "Poutre":
@@ -21,3 +21,13 @@ elif st.session_state.page == "Dalle":
     dalle.show()
 elif st.session_state.page == "Profilé métallique":
     profile.show()
+elif st.session_state.page == "Tableau armatures":
+    tableau_armatures.show()
+elif st.session_state.page == "Recouvrement":
+    recouvrement.show()
+elif st.session_state.page == "Choix profilé":
+    choix_profile.show()
+elif st.session_state.page == "Flambement":
+    flambement.show()
+elif st.session_state.page == "Tableau profilés":
+    tableau_profiles.show()
