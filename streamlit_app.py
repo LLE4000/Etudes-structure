@@ -1,5 +1,15 @@
 import streamlit as st
-from modules import accueil, poutre, dalle, profile, tableau_armatures, recouvrement, choix_profile, flambement, tableau_profiles
+from modules import (
+    accueil,
+    poutre,
+    dalle,
+    profile_metal,           # ✅ CORRIGÉ : anciennement `profile`
+    tableau_armatures,
+    recouvrement,
+    choix_profile,
+    flambement,
+    tableau_profiles
+)
 
 # Configuration
 st.set_page_config(
@@ -20,7 +30,7 @@ elif st.session_state.page == "Poutre":
 elif st.session_state.page == "Dalle":
     dalle.show()
 elif st.session_state.page == "Profilé métallique":
-    profile_metal.show()
+    profile_metal.show()         # ✅ nom de fichier correct
 elif st.session_state.page == "Tableau armatures":
     tableau_armatures.show()
 elif st.session_state.page == "Recouvrement":
