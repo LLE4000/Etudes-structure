@@ -3,11 +3,24 @@ from datetime import datetime
 import json
 
 def show():
-    # Bouton clair au-dessus du titre
-    if st.button("🏠 Retour à l'accueil"):
-        st.session_state.page = "Accueil"
+    # Ligne du haut : bouton à droite
+    col_a, col_b = st.columns([6, 1])
+    with col_b:
+        if st.button("🏠 Accueil"):
+            st.session_state.page = "Accueil"
 
     st.markdown("## Poutre en béton armé")
+
+    # --- CHARGER LA BASE DE DONNÉES BÉTON ---
+    with open("beton_classes.json", "r") as f:
+        beton_data = json.load(f)
+
+    # --- RÉINITIALISATION ---
+    if st.button("🔄 Réinitialiser"):
+        st.rerun()
+
+    # --- COLONNES PRINCIPALES ---
+    col_gauche, col_droite = st.columns([2, 3])
 
     # --- CHARGER LA BASE DE DONNÉES BÉTON ---
     with open("beton_classes.json", "r") as f:
