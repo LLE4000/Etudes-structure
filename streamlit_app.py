@@ -1,15 +1,19 @@
 import streamlit as st
-from modules import poutre, dalle, accueil, profile
+from modules import accueil, poutre, dalle, profile
 
-PAGES = {
-    "Accueil": accueil,
-    "Poutre béton armé": poutre,
-    "Dalle béton armé": dalle,
-    "Profilé métallique": profile
-}
+st.set_page_config(page_title="Études Structure", page_icon="🏗️", layout="wide")
 
-st.sidebar.title("Menu")
-selection = st.sidebar.radio("Aller à", list(PAGES.keys()))
+st.title("🏗️ Études Structure")
 
-page = PAGES[selection]
-page.show()
+# Menu de navigation
+page = st.sidebar.radio("Navigation", ["Accueil", "Poutre", "Dalle", "Profilé métallique"])
+
+# Routing
+if page == "Accueil":
+    accueil.show()
+elif page == "Poutre":
+    poutre.show()
+elif page == "Dalle":
+    dalle.show()
+elif page == "Profilé métallique":
+    profile.show()
