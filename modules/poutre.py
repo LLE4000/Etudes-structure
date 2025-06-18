@@ -3,19 +3,18 @@ from datetime import datetime
 import json
 
 def show():
-    # Ligne du haut : bouton accueil à droite
-    col_a, col_b = st.columns([6, 1])
-    with col_b:
-        if st.button("🏠 Accueil", key="retour_accueil_poutre"):
-            st.session_state.page = "Accueil"
+    # Titre et bouton Accueil côte à côte
+    col1, col2 = st.columns([5, 1])
+    with col1:
+        st.markdown("## Poutre en béton armé")
+    with col2:
+        st.button("🏠 Accueil", key="retour_accueil_poutre", on_click=lambda: st.session_state.update(page="Accueil"))
 
-    st.markdown("## Poutre en béton armé")
-
-    # --- CHARGER LA BASE DE DONNÉES BÉTON ---
+    # Charger la base béton
     with open("beton_classes.json", "r") as f:
         beton_data = json.load(f)
 
-    # --- RÉINITIALISATION ---
+    # Bouton réinitialisation
     if st.button("🔄 Réinitialiser", key="reset_poutre"):
         st.rerun()
 
