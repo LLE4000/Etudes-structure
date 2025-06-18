@@ -3,7 +3,7 @@ from modules import (
     accueil,
     poutre,
     dalle,
-    profile_metal,           # ✅ CORRIGÉ : anciennement `profile`
+    profile_metal,
     tableau_armatures,
     recouvrement,
     choix_profile,
@@ -30,7 +30,7 @@ elif st.session_state.page == "Poutre":
 elif st.session_state.page == "Dalle":
     dalle.show()
 elif st.session_state.page == "Profilé métallique":
-    profile_metal.show()         # ✅ nom de fichier correct
+    profile_metal.show()
 elif st.session_state.page == "Tableau armatures":
     tableau_armatures.show()
 elif st.session_state.page == "Recouvrement":
@@ -41,3 +41,4 @@ elif st.session_state.page == "Flambement":
     flambement.show()
 elif st.session_state.page == "Tableau profilés":
     tableau_profiles.show()
+
