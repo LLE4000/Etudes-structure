@@ -45,11 +45,11 @@ def show():
         st.markdown("### Caractéristiques de la poutre")
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            b = st.number_input("Largeur (cm)", 10, 120, 40, key="b")
+            b = st.number_input("Larg. (cm)", 5, 1000, 20, key="b")
         with col2:
-            h = st.number_input("Hauteur (cm)", 10, 150, 60, key="h")
+            h = st.number_input("Haut. (cm)", 5, 1000, 35, key="h")
         with col3:
-            enrobage = st.number_input("Enrobage (cm)", 2, 10, 3, key="enrobage")
+            enrobage = st.number_input("Enrob. (cm)", 1, 50, 5, key="enrobage")
         with col4:
             beton = st.selectbox("Classe de béton", list(beton_data.keys()), index=2)
         with col5:
