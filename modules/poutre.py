@@ -3,27 +3,30 @@ from datetime import datetime
 import json
 
 def show():
-    # Titre et bouton Accueil parfaitement alignés
+    # Si on vient de demander un retour à l'accueil, on rerun ici
+    if st.session_state.get("retour_accueil_demande"):
+        st.session_state.page = "Accueil"
+        st.session_state.retour_accueil_demande = False
+        st.experimental_rerun()
+
+    # Titre + bouton Accueil aligné à droite
     col1, col2 = st.columns([6, 1])
     with col1:
         st.markdown("## Poutre en béton armé")
     with col2:
         if st.button("🏠 Accueil", key="retour_accueil_poutre"):
-            st.session_state.page = "Accueil"
+            st.session_state.retour_accueil_demande = True
+            st.experimental_rerun()
 
-    # Redémarre proprement après changement de page
-    if st.session_state.get("page") == "Accueil":
-        st.experimental_rerun()
-
-    # Chargement de la base de données béton
+    # Chargement béton
     with open("beton_classes.json", "r") as f:
         beton_data = json.load(f)
 
-    # Bouton de réinitialisation avec clé unique
+    # Réinitialiser
     if st.button("🔄 Réinitialiser", key="reset_poutre"):
         st.rerun()
 
-    # --- COLONNES PRINCIPALES ---
+    # Colonnes de contenu
     col_gauche, col_droite = st.columns([2, 3])
 
     # ----------- COLONNE GAUCHE -----------
