@@ -10,7 +10,10 @@ def show():
     with col2:
         if st.button("🏠 Accueil", key="retour_accueil_poutre"):
             st.session_state.page = "Accueil"
-            st.experimental_rerun()
+
+    # Redémarre proprement après changement de page
+    if st.session_state.get("page") == "Accueil":
+        st.experimental_rerun()
 
     # Chargement de la base de données béton
     with open("beton_classes.json", "r") as f:
