@@ -3,7 +3,12 @@ from datetime import datetime
 import json
 
 def show():
-    st.markdown("## Poutre en beton armé")
+    # Bouton de retour à l'accueil
+    st.markdown("<div style='text-align: right;'>"
+                "<a href='#' onclick='window.location.reload(); return false;'>"
+                "🏠 Retour à l'accueil</a></div>", unsafe_allow_html=True)
+
+    st.markdown("## Poutre en béton armé")
 
     # --- CHARGER LA BASE DE DONNÉES BÉTON ---
     with open("beton_classes.json", "r") as f:
