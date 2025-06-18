@@ -22,28 +22,6 @@ def show():
     # --- COLONNES PRINCIPALES ---
     col_gauche, col_droite = st.columns([2, 3])
 
-    # --- CHARGER LA BASE DE DONNÉES BÉTON ---
-    with open("beton_classes.json", "r") as f:
-        beton_data = json.load(f)
-
-    # --- RÉINITIALISATION ---
-    if st.button("🔄 Réinitialiser"):
-        st.rerun()
-
-    # --- COLONNES PRINCIPALES ---
-    col_gauche, col_droite = st.columns([2, 3])
-
-    # --- CHARGER LA BASE DE DONNÉES BÉTON ---
-    with open("beton_classes.json", "r") as f:
-        beton_data = json.load(f)
-
-    # --- RÉINITIALISATION ---
-    if st.button("🔄 Réinitialiser"):
-        st.rerun()
-
-    # --- COLONNES PRINCIPALES ---
-    col_gauche, col_droite = st.columns([2, 3])
-
     # ----------- COLONNE GAUCHE -----------
     with col_gauche:
         # 1. INFOS PROJET
