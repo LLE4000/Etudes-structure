@@ -3,10 +3,9 @@ from datetime import datetime
 import json
 
 def show():
-    # Bouton de retour à l'accueil
-    st.markdown("<div style='text-align: right;'>"
-                "<a href='#' onclick='window.location.reload(); return false;'>"
-                "🏠 Retour à l'accueil</a></div>", unsafe_allow_html=True)
+    # Bouton clair au-dessus du titre
+    if st.button("🏠 Retour à l'accueil"):
+        st.session_state.page = "Accueil"
 
     st.markdown("## Poutre en béton armé")
 
