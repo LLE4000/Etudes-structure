@@ -20,7 +20,7 @@ elif st.session_state.page == "Poutre":
 elif st.session_state.page == "Dalle":
     dalle.show()
 elif st.session_state.page == "Profilé métallique":
-    profile.show()
+    profile_metal.show()
 elif st.session_state.page == "Tableau armatures":
     tableau_armatures.show()
 elif st.session_state.page == "Recouvrement":
