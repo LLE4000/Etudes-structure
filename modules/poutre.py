@@ -3,8 +3,8 @@ from datetime import datetime
 import json
 
 def show():
-    # Ligne d'en-tête : titre à gauche, bouton Accueil à droite
-    col1, col2 = st.columns([5, 1])
+    # Titre et bouton Accueil parfaitement alignés
+    col1, col2 = st.columns([6, 1])
     with col1:
         st.markdown("## Poutre en béton armé")
     with col2:
@@ -16,7 +16,7 @@ def show():
     with open("beton_classes.json", "r") as f:
         beton_data = json.load(f)
 
-    # Bouton de réinitialisation
+    # Bouton de réinitialisation avec clé unique
     if st.button("🔄 Réinitialiser", key="reset_poutre"):
         st.rerun()
 
