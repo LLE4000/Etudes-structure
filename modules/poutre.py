@@ -3,7 +3,7 @@ from datetime import datetime
 import json
 
 def show():
-    st.markdown("## Poutre en béton armé")
+    st.markdown("## Poutre en beton armé")
 
     # --- CHARGER LA BASE DE DONNÉES BÉTON ---
     with open("beton_classes.json", "r") as f:
