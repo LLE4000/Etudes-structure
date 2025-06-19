@@ -72,7 +72,7 @@ def show():
     with col_droite:
         st.markdown("### Dimensionnement")
 
-        d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * mu_val)) / 10  # cm
+        d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10  # cm
         st.markdown(f"**h,min :** d = {d_calcule:.1f} cm")
         col1, col2 = st.columns([10, 1])
         with col1:
@@ -87,6 +87,7 @@ def show():
         As_max = 0.04 * b * h
 
         st.markdown("### Armatures pour M inférieur")
+        st.markdown(f"**Aₛ,inf = {As_inf:.0f} mm²**")
         st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
         st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
         col1, col2, col3 = st.columns([3, 3, 4])
@@ -108,7 +109,9 @@ def show():
         if m_sup:
             st.markdown("### Armatures pour M supérieur")
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d)
-            st.markdown(f"**Aₛ,req = {As_sup:.0f} mm²**")
+            st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
+            st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
+        st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
             col1, col2, col3 = st.columns([3, 3, 4])
             with col1:
                 n_sup = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_sup")
