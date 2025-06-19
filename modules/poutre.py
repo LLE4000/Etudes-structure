@@ -132,7 +132,7 @@ def show():
                       # --- Vérification effort tranchant ---
 st.markdown("**Vérification de l'effort tranchant**")
 if V > 0:
-    fck_cube = int(beton.split("/")[1])
+    fck_cube = beton_data[beton]["fck_cube"]
     tau = V * 1e3 / (0.75 * b * h * 100)  # N/mm²
 
     tau_1 = 0.016 * fck_cube / 1.05
