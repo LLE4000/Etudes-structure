@@ -84,10 +84,10 @@ def show():
 
         # Étape 1 : Hauteur utile recommandée
         d_calcule = math.sqrt(( M * 1e6) / (alpha_b * b * mu_val)) / 10  # cm
-        st.markdown(f"**Hauteur utile requise :** d = {d_calcule:.1f} cm")
+        st.markdown(f"**h,min :** d = {d_calcule:.1f} cm")
         col1, col2 = st.columns([10, 1])
         with col1:
-            st.markdown(f"Vérification : d_calcule + enrobage = {d_calcule + enrobage/10:.1f} cm ≤ h = {h} cm")
+            st.markdown(f"h,min + enrobage = {d_calcule + enrobage:.1f} cm ≤ h = {h} cm")
         with col2:
             st.markdown("✅" if d_calcule + enrobage/10 <= h else "❌")
 
