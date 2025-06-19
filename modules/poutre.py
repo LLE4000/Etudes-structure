@@ -25,6 +25,7 @@ def show():
 
     col_gauche, col_droite = st.columns([2, 2])
 
+    # --- COLONNE GAUCHE ---
     with col_gauche:
         st.markdown("### Informations sur le projet")
         st.text_input("", placeholder="Nom du projet", key="nom_projet")
@@ -49,9 +50,9 @@ def show():
             fyk = st.selectbox("Qualité d'acier", ["400", "500"], index=1)
 
         fck = beton_data[beton]["fck"]
+        fck_cube = beton_data[beton]["fck_cube"]
         alpha_b = beton_data[beton]["alpha_b"]
         mu_val = beton_data[beton][f"mu_a{fyk}"]
-        tau_lim = round(0.5 + 0.01 * (fck - 20), 2)
         fyd = int(fyk) / 1.5
 
         st.markdown("### Sollicitations")
@@ -69,11 +70,12 @@ def show():
             if v_sup:
                 V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0)
 
+    # --- COLONNE DROITE ---
     with col_droite:
         st.markdown("### Dimensionnement")
 
         st.markdown("**Vérification de la hauteur**")
-        d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10  # cm
+        d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10
         st.markdown(f"**h,min :** d = {d_calcule:.1f} cm")
         col1, col2 = st.columns([10, 1])
         with col1:
@@ -110,7 +112,6 @@ def show():
         if m_sup:
             st.markdown("**Armatures supérieures**")
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10)
-
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
@@ -129,47 +130,40 @@ def show():
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
 
-                     # --- Vérification effort tranchant ---
+        # --- Vérification effort tranchant ---
         st.markdown("**Vérification de l'effort tranchant**")
-    if V > 0:
-        fck_cube = beton_data[beton]["fck_cube"]
-        tau = V * 1e3 / (0.75 * b * h * 100)  # N/mm²
+        if V > 0:
+            tau = V * 1e3 / (0.75 * b * h * 100)
+            tau_1 = 0.016 * fck_cube / 1.05
+            tau_3 = 0.064 * fck_cube / 1.05
+            tau_4 = 0.096 * fck_cube / 1.05
 
-        tau_1 = 0.016 * fck_cube / 1.05
-        tau_3 = 0.064 * fck_cube / 1.05
-        tau_4 = 0.096 * fck_cube / 1.05
+            if tau <= tau_1:
+                besoin = "Pas besoin d’étriers"
+                icone = "✅"
+                tau_lim_aff = tau_1
+                nom_lim = "τ_adm_I"
+            elif tau <= tau_3:
+                besoin = "Besoin d’étriers"
+                icone = "✔️"
+                tau_lim_aff = tau_3
+                nom_lim = "τ_adm_II"
+            elif tau <= tau_4:
+                besoin = "Besoin de barres inclinées et d’étriers"
+                icone = "⚠️"
+                tau_lim_aff = tau_4
+                nom_lim = "τ_adm_III"
+            else:
+                besoin = "Non conforme (au-dessus de la limite)"
+                icone = "❌"
+                tau_lim_aff = tau_4
+                nom_lim = "τ_adm_III"
 
-        if tau <= tau_1:
-            besoin = "Pas besoin d’étriers"
-            icone = "✅"
-            tau_lim_aff = tau_1
-            nom_lim = "τ_adm_I"
-        elif tau <= tau_3:
-            besoin = "Besoin d’étriers"
-            icone = "✔️"
-            tau_lim_aff = tau_3
-            nom_lim = "τ_adm_II"
-        elif tau <= tau_4:
-            besoin = "Besoin de barres inclinées et d’étriers"
-            icone = "⚠️"
-            tau_lim_aff = tau_4
-            nom_lim = "τ_adm_III"
-        else:
-            besoin = "Non conforme (au-dessus de la limite)"
-            icone = "❌"
-            tau_lim_aff = tau_4
-            nom_lim = "τ_adm_III"
+            st.markdown(f"**τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin} {icone}**")
 
-        st.markdown(f"**τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin} {icone}**")
-
-    st.markdown("**Étriers**")
-    if not v_sup:
-        st.markdown("_En construction : calcul de la section d’étriers selon effort tranchant standard._")
-    else:
-        st.markdown("**Étriers (valeur réduite)**")
-        if "V_lim" in locals():
-            tau_r = V_lim * 1e3 / (0.75 * b * h * 100)  # N/mm²
-
+        st.markdown("**Étriers (valeur réduite)**" if v_sup else "**Étriers**")
+        if v_sup and V_lim > 0:
+            tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
             if tau_r <= tau_1:
                 besoin_r = "Pas besoin d’étriers"
                 icone_r = "✅"
@@ -193,3 +187,5 @@ def show():
 
             st.markdown(f"**τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r} {icone_r}**")
             st.markdown("_En construction : calcul de la section d’étriers avec V réduit._")
+        elif not v_sup:
+            st.markdown("_En construction : calcul de la section d’étriers selon effort tranchant standard._")
