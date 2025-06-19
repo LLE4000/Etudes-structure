@@ -79,38 +79,48 @@ def show():
 
     # ----------- COLONNE DROITE -----------
     with col_droite:
-        st.markdown("### Dimensionnement")
-        d = h - enrobage
-        st.markdown(f"**Hauteur utile d = h - enrobage = {h} - {enrobage} = {d:.1f} cm**")
-        st.markdown("Vérification de la hauteur utile (d ≤ 0.9·h)")
+    st.markdown("### Dimensionnement")
 
-        if M > 0:
-            Mu = M * 1e6
-            As_req = Mu / (fyd * 10 * 0.9 * d)
-            As_min = 0.0013 * b * h
-            As_max = 0.04 * b * h
+    # Étape 1 : Hauteur utile recommandée
+    d_calcule = math.sqrt(( M * 1e6) / (alpha_b * b * mu_val)) / 10  # cm
+    st.markdown(f"**Hauteur utile requise :** d = {d_calcule:.1f} cm")
+    col1, col2 = st.columns([10, 1])
+    with col1:
+        st.markdown(f"Vérification : d_calcule + enrobage = {d_calcule + enrobage/10:.1f} cm ≤ h = {h} cm")
+    with col2:
+        st.markdown("✅" if d_calcule + enrobage/10 <= h else "❌")
 
-            st.markdown(f"Section requise A = **{As_req:.1f} mm²**")
-            col1, col2, col3 = st.columns([3, 3, 4])
-            with col1:
-                n_barres = st.selectbox("Nb barres", list(range(1, 8)), key="n_as")
-            with col2:
-                diam_barres = st.selectbox("Ø (mm)", [8, 10, 12, 14, 16, 20], key="ø_as")
-            with col3:
-                As_choisi = 3.14 * (diam_barres / 2) ** 2 * n_barres
-                st.markdown(f"Section = **{As_choisi:.0f} mm²**")
+    # Étape 2 : Armatures
+    d = h - enrobage  # mm
+    Mu = M * 1e6
+    fyd = 500 / 1.5  # N/mm²
+    As_req = Mu / (fyd * 0.9 * d)  # mm²
+    As_min = 0.0013 * b * h
+    As_max = 0.04 * b * h
 
-            col1, col2 = st.columns([10, 1])
-            with col1:
-                st.write("Vérification Aₛ entre Aₛmin et Aₛmax et ≥ Aₛ requis")
-            with col2:
-                st.markdown("✅" if As_min <= As_choisi <= As_max and As_choisi >= As_req else "❌")
+    st.markdown(f"**Armatures inférieures :** Aₛ,req = {As_req:.0f} mm²")
+    col1, col2, col3 = st.columns([3, 3, 4])
+    with col1:
+        n_barres = st.selectbox("Nb barres", list(range(1, 11)), key="n_as")
+    with col2:
+        diam_barres = st.selectbox("Ø (mm)", [6, 8, 10, 12, 14, 16, 20], key="ø_as")
+    with col3:
+        As_choisi = n_barres * (math.pi * (diam_barres/2)**2)
+        st.markdown(f"Section choisie = **{As_choisi:.0f} mm²**")
 
-        if V > 0:
-            tau = V / (0.75 * b * h)
-            st.markdown(f"τ = {tau:.2f} MPa / τ_lim = {tau_lim:.2f} MPa")
-            col1, col2 = st.columns([10, 1])
-            with col1:
-                st.write("Vérification τ ≤ τ_lim")
-            with col2:
-                st.markdown("✅" if tau <= tau_lim else "❌")
+    col1, col2 = st.columns([10, 1])
+    with col1:
+        st.write("Vérification Aₛ ≥ Aₛ,req et Aₛ ∈ [Aₛ,min ; Aₛ,max]")
+    with col2:
+        ok_armature = As_min <= As_choisi <= As_max and As_choisi >= As_req
+        st.markdown("✅" if ok_armature else "❌")
+
+    # Étape 3 : Effort tranchant
+    if V > 0:
+        tau = V * 1e3 / (0.75 * b * h)
+        st.markdown(f"**τ = {tau:.2f} MPa** / **τ_lim = {tau_lim:.2f} MPa**")
+        col1, col2 = st.columns([10, 1])
+        with col1:
+            st.write("Vérification τ ≤ τ_lim")
+        with col2:
+            st.markdown("✅" if tau <= tau_lim else "❌")
