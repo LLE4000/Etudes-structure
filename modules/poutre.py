@@ -130,7 +130,7 @@ def show():
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
 
                      # --- Vérification effort tranchant ---
-    st.markdown("**Vérification de l'effort tranchant**")
+        st.markdown("**Vérification de l'effort tranchant**")
     if V > 0:
         fck_cube = beton_data[beton]["fck_cube"]
         tau = V * 1e3 / (0.75 * b * h * 100)  # N/mm²
