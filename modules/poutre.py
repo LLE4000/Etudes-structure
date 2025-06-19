@@ -76,7 +76,7 @@ def show():
 
         st.markdown("**Vérification de la hauteur**")
         d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10
-        st.markdown(f"**h,min :** d = {d_calcule:.1f} cm")
+        st.markdown(f"**h,min ** d = {d_calcule:.1f} cm")
         col1, col2 = st.columns([10, 1])
         with col1:
             st.markdown(f"h,min + enrobage = {d_calcule + enrobage:.1f} cm ≤ h = {h} cm")
