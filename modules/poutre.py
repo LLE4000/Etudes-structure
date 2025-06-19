@@ -26,7 +26,7 @@ def show():
     col_gauche, col_droite = st.columns([2, 2])
 
     with col_gauche:
-        st.markdown("## 1. Informations sur le projet")
+        st.markdown("### Informations sur le projet")
         st.text_input("", placeholder="Nom du projet", key="nom_projet")
         st.text_input("", placeholder="Partie", key="partie")
         col1, col2 = st.columns(2)
@@ -35,7 +35,7 @@ def show():
         with col2:
             st.text_input("", placeholder="Indice", value="0", key="indice")
 
-        st.markdown("## 2. Caractéristiques de la poutre")
+        st.markdown("### Caractéristiques de la poutre")
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
             b = st.number_input("Larg. (cm)", 5, 1000, 20, key="b")
@@ -54,7 +54,7 @@ def show():
         tau_lim = round(0.5 + 0.01 * (fck - 20), 2)
         fyd = int(fyk) / 1.5
 
-        st.markdown("## 3. Sollicitations")
+        st.markdown("### Sollicitations")
         col1, col2 = st.columns(2)
         with col1:
             M_inf = st.number_input("Moment inférieur M (kNm)", 0.0, step=10.0)
@@ -70,9 +70,9 @@ def show():
                 V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0)
 
     with col_droite:
-        st.markdown("## 4. Dimensionnement")
+        st.markdown("### Dimensionnement")
 
-        st.markdown("### 4.1 Vérification de la hauteur")
+        st.markdown("**Vérification de la hauteur**")
         d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10  # cm
         st.markdown(f"**h,min :** d = {d_calcule:.1f} cm")
         col1, col2 = st.columns([10, 1])
@@ -87,10 +87,7 @@ def show():
         As_min = 0.0013 * b * h * 1e2
         As_max = 0.04 * b * h * 1e2
 
-        if not m_sup:
-            st.markdown("### 4.2 Armatures inférieures")
-        else:
-            st.markdown("### 4.2a Armatures inférieures")
+        st.markdown("**Armatures inférieures**" if not m_sup else "**Armatures inférieures (avec M_sup)**")
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -111,7 +108,7 @@ def show():
             st.markdown(f"Section choisie = **{As_choisi:.0f} mm²** {'✅' if ok1 else '❌'}")
 
         if m_sup:
-            st.markdown("### 4.2b Armatures supérieures")
+            st.markdown("**Armatures supérieures**")
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10)
 
             col1, col2, col3 = st.columns(3)
@@ -132,7 +129,7 @@ def show():
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
 
-        st.markdown("### 4.3 Vérification de l'effort tranchant")
+        st.markdown("**Vérification de l'effort tranchant**")
         if V > 0:
             tau = V * 1e3 / (0.75 * b * h)
             st.markdown(f"**τ = {tau:.2f} MPa** / **τ_lim = {tau_lim:.2f} MPa**")
@@ -142,11 +139,9 @@ def show():
             with col2:
                 st.markdown("✅" if tau <= tau_lim else "❌")
 
-        st.markdown("### 4.4 Étriers")
+        st.markdown("**Étriers**")
         if not v_sup:
             st.markdown("*(à implémenter : Étriers selon effort tranchant standard)*")
         else:
-            st.markdown("#### 4.4a Étriers")
-            st.markdown("*(à implémenter)*")
-            st.markdown("#### 4.4b Étriers avec effort tranchant réduit")
+            st.markdown("**Étriers (valeur réduite)**")
             st.markdown("*(à implémenter)*")
