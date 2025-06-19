@@ -129,70 +129,67 @@ def show():
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
 
-                       st.markdown("**Vérification de l'effort tranchant**")
-        if V > 0:
-            fck_cube = int(beton.split("/")[1])
-            tau = V * 1e3 / (0.75 * b * h)  # en N/mm²
+                      # --- Vérification effort tranchant ---
+st.markdown("**Vérification de l'effort tranchant**")
+if V > 0:
+    fck_cube = int(beton.split("/")[1])
+    tau = V * 1e3 / (0.75 * b * h * 100)  # N/mm²
 
-            tau1 = 0.016 * fck_cube / 1.05
-            tau3 = 0.064 * fck_cube / 1.05
-            tau4 = 0.096 * fck_cube / 1.05
+    tau_1 = 0.016 * fck_cube / 1.05
+    tau_3 = 0.064 * fck_cube / 1.05
+    tau_4 = 0.096 * fck_cube / 1.05
 
-            if tau <= tau1:
-                besoin = "→ Pas besoin d’étriers"
-                tau_limite = tau1
-                symbole = "✅"
-                label = "τ_adm_I"
-            elif tau <= tau3:
-                besoin = "→ Besoin d’étriers"
-                tau_limite = tau3
-                symbole = "✅"
-                label = "τ_adm_II"
-            elif tau <= tau4:
-                besoin = "→ Besoin de barres inclinées et d’étriers"
-                tau_limite = tau4
-                symbole = "⚠️"
-                label = "τ_adm_III"
-            else:
-                besoin = "→ Dépassement"
-                tau_limite = tau4
-                symbole = "❌"
-                label = "τ_adm_III"
+    if tau <= tau_1:
+        besoin = "Pas besoin d’étriers"
+        icone = "✅"
+        tau_lim_aff = tau_1
+        nom_lim = "τ_adm_I"
+    elif tau <= tau_3:
+        besoin = "Besoin d’étriers"
+        icone = "✔️"
+        tau_lim_aff = tau_3
+        nom_lim = "τ_adm_II"
+    elif tau <= tau_4:
+        besoin = "Besoin de barres inclinées et d’étriers"
+        icone = "⚠️"
+        tau_lim_aff = tau_4
+        nom_lim = "τ_adm_III"
+    else:
+        besoin = "Non conforme (au-dessus de la limite)"
+        icone = "❌"
+        tau_lim_aff = tau_4
+        nom_lim = "τ_adm_III"
 
-            st.markdown(
-                f"τ = {tau:.2f} N/mm² ≤ {label} = {tau_limite:.2f} N/mm² {besoin} {symbole}"
-            )
+    st.markdown(f"**τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin} {icone}**")
 
-        st.markdown("**Étriers**")
-        if not v_sup:
-            st.markdown("*(Calcul de la section d'étriers en construction)*")
+st.markdown("**Étriers**")
+if not v_sup:
+    st.markdown("_En construction : calcul de la section d’étriers selon effort tranchant standard._")
+else:
+    st.markdown("**Étriers (valeur réduite)**")
+    if V_sup := st.session_state.get("V_lim", None):
+        tau_r = V_sup * 1e3 / (0.75 * b * h * 100)  # N/mm²
+
+        if tau_r <= tau_1:
+            besoin_r = "Pas besoin d’étriers"
+            icone_r = "✅"
+            tau_lim_aff_r = tau_1
+            nom_lim_r = "τ_adm_I"
+        elif tau_r <= tau_3:
+            besoin_r = "Besoin d’étriers"
+            icone_r = "✔️"
+            tau_lim_aff_r = tau_3
+            nom_lim_r = "τ_adm_II"
+        elif tau_r <= tau_4:
+            besoin_r = "Besoin de barres inclinées et d’étriers"
+            icone_r = "⚠️"
+            tau_lim_aff_r = tau_4
+            nom_lim_r = "τ_adm_III"
         else:
-            st.markdown("**Étriers avec effort tranchant réduit**")
-            if V_lim > 0:
-                tau_r = V_lim * 1e3 / (0.75 * b * h)  # en N/mm²
+            besoin_r = "Non conforme (au-dessus de la limite)"
+            icone_r = "❌"
+            tau_lim_aff_r = tau_4
+            nom_lim_r = "τ_adm_III"
 
-                if tau_r <= tau1:
-                    besoin_r = "→ Pas besoin d’étriers"
-                    tau_limite_r = tau1
-                    symbole_r = "✅"
-                    label_r = "τ_adm_I"
-                elif tau_r <= tau3:
-                    besoin_r = "→ Besoin d’étriers"
-                    tau_limite_r = tau3
-                    symbole_r = "✅"
-                    label_r = "τ_adm_II"
-                elif tau_r <= tau4:
-                    besoin_r = "→ Besoin de barres inclinées et d’étriers"
-                    tau_limite_r = tau4
-                    symbole_r = "⚠️"
-                    label_r = "τ_adm_III"
-                else:
-                    besoin_r = "→ Dépassement"
-                    tau_limite_r = tau4
-                    symbole_r = "❌"
-                    label_r = "τ_adm_III"
-
-                st.markdown(
-                    f"τ = {tau_r:.2f} N/mm² ≤ {label_r} = {tau_limite_r:.2f} N/mm² {besoin_r} {symbole_r}"
-                )
-                st.markdown("*(Calcul de la section d'étriers réduite en construction)*")
+        st.markdown(f"**τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r} {icone_r}**")
+        st.markdown("_En construction : calcul de la section d’étriers avec V réduit._")
