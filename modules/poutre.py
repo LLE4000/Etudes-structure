@@ -87,7 +87,7 @@ def show():
         st.markdown(f"**h,min :** d = {d_calcule:.1f} cm")
         col1, col2 = st.columns([10, 1])
         with col1:
-            st.markdown(f"h,min + enrobage = {d_calcule + enrobage:.1f} cm ≤ h = {h} cm{alpha_b} {mu_val}")
+            st.markdown(f"h,min + enrobage = {d_calcule + enrobage:.1f} cm ≤ h = {h} cm{alpha_b}{M} {mu_val}")
         with col2:
             st.markdown("✅" if d_calcule + enrobage/10 <= h else "❌")
 
