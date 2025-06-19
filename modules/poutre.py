@@ -52,7 +52,7 @@ def show():
         alpha_b = beton_data[beton]["alpha_b"]
         mu_val = beton_data[beton][f"mu_a{fyk}"]
         tau_lim = round(0.5 + 0.01 * (fck - 20), 2)
-        fyd = int(fyk) / 1.15
+        fyd = int(fyk) / 1.5
 
         st.markdown("### Sollicitations")
         col1, col2 = st.columns(2)
