@@ -99,8 +99,8 @@ def show():
         As_max = 0.04 * b * h
 
         st.markdown("### Armatures pour M inférieur")
-        st.markdown(f"**Aₛ,req = {As_req:.0f} mm²**")
-        st.markdown(f"**Aₛ,req = {As_req:.0f} mm²**")
+        st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
+        st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
         col1, col2, col3 = st.columns([3, 3, 4])
         with col1:
             n_barres = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_inf")
