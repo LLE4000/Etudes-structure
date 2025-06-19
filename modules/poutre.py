@@ -129,19 +129,60 @@ def show():
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
 
-        st.markdown("**Vérification de l'effort tranchant**")
+                st.markdown("**Vérification de l'effort tranchant**")
         if V > 0:
-            tau = V * 1e3 / (0.75 * b * h)
-            st.markdown(f"**τ = {tau:.2f} MPa** / **τ_lim = {tau_lim:.2f} MPa**")
-            col1, col2 = st.columns([10, 1])
-            with col1:
-                st.write("Vérification τ ≤ τ_lim")
-            with col2:
-                st.markdown("✅" if tau <= tau_lim else "❌")
+            fck_cube = fck * 1.25  # conversion fck → fck,cube (valeur courante en Belgique)
+            tau_1 = 0.016 * fck_cube / 1.05
+            tau_3 = 0.064 * fck_cube / 1.05
+            tau_4 = 0.096 * fck_cube / 1.05
+            tau = V * 1e3 / (0.75 * b * h * 100)
 
-        st.markdown("**Étriers**")
-        if not v_sup:
-            st.markdown("*(à implémenter : Étriers selon effort tranchant standard)*")
-        else:
-            st.markdown("**Étriers (valeur réduite)**")
-            st.markdown("*(à implémenter)*")
+            if tau <= tau_1:
+                besoin = "Pas besoin d'étriers"
+                symbole = "❌"
+                couleur = ":red[❌]"
+                limite = f"τ₁ = {tau_1:.2f}"
+            elif tau <= tau_3:
+                besoin = "Besoin d'étriers"
+                symbole = "✅"
+                couleur = ":green[✅]"
+                limite = f"τ₃ = {tau_3:.2f}"
+            elif tau <= tau_4:
+                besoin = "Besoin de barres inclinées et d'étriers"
+                symbole = "⚠️"
+                couleur = ":orange[⚠️]"
+                limite = f"τ₄ = {tau_4:.2f}"
+            else:
+                besoin = "Dépassement de la limite admissible"
+                symbole = "❌"
+                couleur = ":red[❌]"
+                limite = f"τ₄ = {tau_4:.2f}"
+
+            st.markdown(f"**τ = {tau:.2f} MPa < {limite} → {besoin}** {couleur}")
+
+            st.markdown("**Étriers**")
+            st.markdown("_En construction..._")
+
+        if v_sup:
+            st.markdown("**Étriers (avec effort tranchant réduit)**")
+            tau_limite = V_lim * 1e3 / (0.75 * b * h * 100)
+
+            if tau_limite <= tau_1:
+                besoin_red = "Pas besoin d'étriers"
+                symbole_red = ":red[❌]"
+                limite_red = f"τ₁ = {tau_1:.2f}"
+            elif tau_limite <= tau_3:
+                besoin_red = "Besoin d'étriers"
+                symbole_red = ":green[✅]"
+                limite_red = f"τ₃ = {tau_3:.2f}"
+            elif tau_limite <= tau_4:
+                besoin_red = "Besoin de barres inclinées et d'étriers"
+                symbole_red = ":orange[⚠️]"
+                limite_red = f"τ₄ = {tau_4:.2f}"
+            else:
+                besoin_red = "Dépassement de la limite admissible"
+                symbole_red = ":red[❌]"
+                limite_red = f"τ₄ = {tau_4:.2f}"
+
+            st.markdown(f"**τ (réduit) = {tau_limite:.2f} MPa < {limite_red} → {besoin_red}** {symbole_red}")
+            st.markdown("_Calcul des étriers en cours de développement..._")
