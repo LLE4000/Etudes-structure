@@ -87,9 +87,14 @@ def show():
         As_max = 0.04 * b * h * 1e2
 
         st.markdown("### Armatures pour M inférieur")
-        st.markdown(f"**Aₛ,inf = {As_req:.0f} mm²**")
-        st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
-        st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**Aₛ,inf = {As_req:.0f} mm²**")
+        with col2:
+            st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
+        with col3:
+            st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
+
         col1, col2, col3 = st.columns([3, 3, 4])
         with col1:
             n_barres = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_inf")
@@ -97,22 +102,22 @@ def show():
             diam_barres = st.selectbox("Ø (mm)", [6, 8, 10, 12, 16, 20, 25, 32, 40], key="ø_as_inf")
         with col3:
             As_choisi = n_barres * (math.pi * (diam_barres / 2) ** 2)
-            st.markdown(f"Section choisie = **{As_choisi:.0f} mm²**")
-
-        col1, col2 = st.columns([10, 1])
-        with col1:
-            st.write("Vérification Aₛ ∈ [Aₛ,min ; Aₛ,max] et ≥ Aₛ,inf")
-        with col2:
             ok1 = As_min <= As_choisi <= As_max and As_choisi >= As_req
-            st.markdown("✅" if ok1 else "❌")
+            st.markdown(f"Section choisie = **{As_choisi:.0f} mm²** {'✅' if ok1 else '❌'}")
 
         # Armatures pour M supérieur
         if m_sup:
             st.markdown("### Armatures pour M supérieur")
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10)
-            st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
-            st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
-            st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
+            with col2:
+                st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
+            with col3:
+                st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
+
             col1, col2, col3 = st.columns([3, 3, 4])
             with col1:
                 n_sup = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_sup")
@@ -120,15 +125,10 @@ def show():
                 d_sup = st.selectbox("Ø (mm)", [6, 8, 10, 12, 16, 20, 25, 32, 40], key="ø_as_sup")
             with col3:
                 As_sup_choisi = n_sup * (math.pi * (d_sup / 2) ** 2)
-                st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²**")
-
-            col1, col2 = st.columns([10, 1])
-            with col1:
-                st.write("Vérification Aₛ ∈ [Aₛ,min ; Aₛ,max] et ≥ Aₛ,sup")
-            with col2:
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
-                st.markdown("✅" if ok2 else "❌")
+                st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
 
+        # Vérification effort tranchant
         if V > 0:
             tau = V * 1e3 / (0.75 * b * h)
             st.markdown(f"**τ = {tau:.2f} MPa** / **τ_lim = {tau_lim:.2f} MPa**")
