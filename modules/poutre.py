@@ -23,26 +23,25 @@ def show():
     with open("beton_classes.json", "r") as f:
         beton_data = json.load(f)
 
-    # Réinitialiser
     if st.button("🔄 Réinitialiser", key="reset_poutre"):
         st.rerun()
 
-    # Colonnes de contenu
+    # Colonnes principales
     col_gauche, col_droite = st.columns([2, 2])
 
     # ----------- COLONNE GAUCHE -----------
     with col_gauche:
-        # 1. INFOS PROJET
+        # Infos projet
         st.markdown("### Informations sur le projet")
-        nom = st.text_input("", placeholder="Nom du projet", key="nom_projet")
-        partie = st.text_input("", placeholder="Partie", key="partie")
+        st.text_input("", placeholder="Nom du projet", key="nom_projet")
+        st.text_input("", placeholder="Partie", key="partie")
         col1, col2 = st.columns(2)
         with col1:
-            date = st.text_input("", placeholder="Date (jj/mm/aaaa)", value=datetime.today().strftime("%d/%m/%Y"), key="date")
+            st.text_input("", placeholder="Date (jj/mm/aaaa)", value=datetime.today().strftime("%d/%m/%Y"), key="date")
         with col2:
-            indice = st.text_input("", placeholder="Indice", value="0", key="indice")
+            st.text_input("", placeholder="Indice", value="0", key="indice")
 
-        # 2. CARACTÉRISTIQUES
+        # Caractéristiques
         st.markdown("### Caractéristiques de la poutre")
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
@@ -56,22 +55,23 @@ def show():
         with col5:
             fyk = st.selectbox("Qualité d'acier", ["400", "500"], index=1)
 
-        # Données béton/acier
+        # Données matériaux
         fck = beton_data[beton]["fck"]
         alpha_b = beton_data[beton]["alpha_b"]
         mu_val = beton_data[beton][f"mu_a{fyk}"]
         tau_lim = round(0.5 + 0.01 * (fck - 20), 2)
         fyd = int(fyk) / 1.15
-        fcd = fck / 1.5
 
-        # 3. SOLLICITATIONS
+        # Sollicitations
         st.markdown("### Sollicitations")
         col1, col2 = st.columns(2)
         with col1:
             M = st.number_input("Moment inférieur M (kNm)", 0.0, step=10.0)
             m_sup = st.checkbox("Ajouter un moment supérieur")
+            M_eff = M  # valeur par défaut
             if m_sup:
                 M_sup = st.number_input("Moment supérieur M_sup (kNm)", 0.0, step=10.0)
+                M_eff = max(abs(M), abs(M_sup))  # valeur utilisée pour h utile
         with col2:
             V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0)
             v_sup = st.checkbox("Ajouter un effort tranchant réduit")
@@ -82,41 +82,64 @@ def show():
     with col_droite:
         st.markdown("### Dimensionnement")
 
-        # Étape 1 : Hauteur utile recommandée
-        d_calcule = math.sqrt(( M * 1e6) / (alpha_b * b * mu_val)) / 10  # cm
+        # Hauteur utile requise
+        d_calcule = math.sqrt((M_eff * 1e6) / (alpha_b * b * mu_val)) / 10  # cm
         st.markdown(f"**h,min :** d = {d_calcule:.1f} cm")
         col1, col2 = st.columns([10, 1])
         with col1:
-            st.markdown(f"h,min + enrobage = {d_calcule + enrobage:.1f} cm ≤ h = {h} cm{alpha_b} {M} {mu_val}")
+            st.markdown(f"h,min + enrobage = {d_calcule + enrobage:.1f} cm ≤ h = {h} cm")
         with col2:
-            st.markdown("✅" if d_calcule + enrobage/10 <= h else "❌")
+            st.markdown("✅" if d_calcule + enrobage <= h else "❌")
 
-        # Étape 2 : Armatures
-        d = h - enrobage  # mm
+        # Armatures pour M inférieur
+        d = h - enrobage
         Mu = M * 1e6
-        fyd = 500 / 1.5  # N/mm²
-        As_req = Mu / (fyd * 0.9 * d)  # mm²
+        As_req = Mu / (fyd * 0.9 * d)
         As_min = 0.0013 * b * h
         As_max = 0.04 * b * h
 
-        st.markdown(f"**Armatures inférieures :** Aₛ,req = {As_req:.0f} mm²")
+        st.markdown("### Armatures pour M inférieur")
+        st.markdown(f"**Aₛ,req = {As_req:.0f} mm²**")
         col1, col2, col3 = st.columns([3, 3, 4])
         with col1:
-            n_barres = st.selectbox("Nb barres", list(range(1, 11)), key="n_as")
+            n_barres = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_inf")
         with col2:
-            diam_barres = st.selectbox("Ø (mm)", [6, 8, 10, 12, 14, 16, 20], key="ø_as")
+            diam_barres = st.selectbox("Ø (mm)", [6, 8, 10, 12, 14, 16, 20], key="ø_as_inf")
         with col3:
             As_choisi = n_barres * (math.pi * (diam_barres/2)**2)
             st.markdown(f"Section choisie = **{As_choisi:.0f} mm²**")
 
         col1, col2 = st.columns([10, 1])
         with col1:
-            st.write("Vérification Aₛ ≥ Aₛ,req et Aₛ ∈ [Aₛ,min ; Aₛ,max]")
+            st.write("Vérification Aₛ ∈ [Aₛ,min ; Aₛ,max] et ≥ Aₛ,req")
         with col2:
-            ok_armature = As_min <= As_choisi <= As_max and As_choisi >= As_req
-            st.markdown("✅" if ok_armature else "❌")
+            ok1 = As_min <= As_choisi <= As_max and As_choisi >= As_req
+            st.markdown("✅" if ok1 else "❌")
 
-        # Étape 3 : Effort tranchant
+        # Armatures pour M supérieur si demandé
+        if m_sup:
+            st.markdown("### Armatures pour M supérieur")
+            Mu_sup = M_sup * 1e6
+            As_sup = Mu_sup / (fyd * 0.9 * d)
+
+            st.markdown(f"**Aₛ,req = {As_sup:.0f} mm²**")
+            col1, col2, col3 = st.columns([3, 3, 4])
+            with col1:
+                n_sup = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_sup")
+            with col2:
+                d_sup = st.selectbox("Ø (mm)", [6, 8, 10, 12, 14, 16, 20], key="ø_as_sup")
+            with col3:
+                As_sup_choisi = n_sup * (math.pi * (d_sup / 2) ** 2)
+                st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²**")
+
+            col1, col2 = st.columns([10, 1])
+            with col1:
+                st.write("Vérification Aₛ ∈ [Aₛ,min ; Aₛ,max] et ≥ Aₛ,req")
+            with col2:
+                ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
+                st.markdown("✅" if ok2 else "❌")
+
+        # Vérification tranchant
         if V > 0:
             tau = V * 1e3 / (0.75 * b * h)
             st.markdown(f"**τ = {tau:.2f} MPa** / **τ_lim = {tau_lim:.2f} MPa**")
