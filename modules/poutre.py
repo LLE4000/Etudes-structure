@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime
 import json
+import math
 
 def show():
     # Si on vient de demander un retour à l'accueil, on rerun ici
@@ -78,7 +79,7 @@ def show():
                 V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0)
 
     # ----------- COLONNE DROITE -----------
-    with col_droite:
+with col_droite:
     st.markdown("### Dimensionnement")
 
     # Étape 1 : Hauteur utile recommandée
@@ -124,3 +125,4 @@ def show():
             st.write("Vérification τ ≤ τ_lim")
         with col2:
             st.markdown("✅" if tau <= tau_lim else "❌")
+
