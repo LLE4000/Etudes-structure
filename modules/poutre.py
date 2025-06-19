@@ -27,7 +27,7 @@ def show():
         st.rerun()
 
     # Colonnes de contenu
-    col_gauche, col_droite = st.columns([2, 3])
+    col_gauche, col_droite = st.columns([2, 2])
 
     # ----------- COLONNE GAUCHE -----------
     with col_gauche:
