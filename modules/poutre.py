@@ -87,7 +87,7 @@ def show():
         As_max = 0.04 * b * h
 
         st.markdown("### Armatures pour M inférieur")
-        st.markdown(f"**Aₛ,inf = {As_inf:.0f} mm²**")
+        st.markdown(f"**Aₛ,inf = {As_req:.0f} mm²**")
         st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
         st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
         col1, col2, col3 = st.columns([3, 3, 4])
@@ -101,17 +101,18 @@ def show():
 
         col1, col2 = st.columns([10, 1])
         with col1:
-            st.write("Vérification Aₛ ∈ [Aₛ,min ; Aₛ,max] et ≥ Aₛ,req")
+            st.write("Vérification Aₛ ∈ [Aₛ,min ; Aₛ,max] et ≥ Aₛ,inf")
         with col2:
             ok1 = As_min <= As_choisi <= As_max and As_choisi >= As_req
             st.markdown("✅" if ok1 else "❌")
 
+        # Armatures pour M supérieur
         if m_sup:
             st.markdown("### Armatures pour M supérieur")
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d)
             st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
             st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
-        st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
+            st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
             col1, col2, col3 = st.columns([3, 3, 4])
             with col1:
                 n_sup = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_sup")
@@ -123,7 +124,7 @@ def show():
 
             col1, col2 = st.columns([10, 1])
             with col1:
-                st.write("Vérification Aₛ ∈ [Aₛ,min ; Aₛ,max] et ≥ Aₛ,req")
+                st.write("Vérification Aₛ ∈ [Aₛ,min ; Aₛ,max] et ≥ Aₛ,sup")
             with col2:
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown("✅" if ok2 else "❌")
