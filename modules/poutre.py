@@ -82,9 +82,9 @@ def show():
 
         # Armatures pour M inférieur
         d = h - enrobage
-        As_req = (M_inf * 1e6) / (fyd * 0.9 * d)
-        As_min = 0.0013 * b * h
-        As_max = 0.04 * b * h
+        As_req = (M_inf * 1e6) / (fyd * 0.9 * d * 10)
+        As_min = 0.0013 * b * h * 1e2
+        As_max = 0.04 * b * h * 1e2
 
         st.markdown("### Armatures pour M inférieur")
         st.markdown(f"**Aₛ,inf = {As_req:.0f} mm²**")
@@ -109,7 +109,7 @@ def show():
         # Armatures pour M supérieur
         if m_sup:
             st.markdown("### Armatures pour M supérieur")
-            As_sup = (M_sup * 1e6) / (fyd * 0.9 * d)
+            As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10)
             st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
             st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
             st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
