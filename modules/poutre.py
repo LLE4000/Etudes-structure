@@ -141,12 +141,12 @@ def show():
 
             if tau <= tau_1:
                 besoin = "Pas besoin d’étriers"
-                icone = "✅"
+                icone = "✅✅"
                 tau_lim_aff = tau_1
                 nom_lim = "τ_adm_I"
             elif tau <= tau_2:
                 besoin = "Besoin d’étriers"
-                icone = "✔️"
+                icone = "✅"
                 tau_lim_aff = tau_2
                 nom_lim = "τ_adm_II"
             elif tau <= tau_4:
@@ -167,12 +167,12 @@ def show():
             tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
             if tau_r <= tau_1:
                 besoin_r = "Pas besoin d’étriers"
-                icone_r = "✅"
+                icone_r = "✅✅"
                 tau_lim_aff_r = tau_1
                 nom_lim_r = "τ_adm_I"
             elif tau_r <= tau_2:
                 besoin_r = "Besoin d’étriers"
-                icone_r = "✔️"
+                icone_r = "✅"
                 tau_lim_aff_r = tau_2
                 nom_lim_r = "τ_adm_II"
             elif tau_r <= tau_4:
