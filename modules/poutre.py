@@ -26,7 +26,7 @@ def show():
     with export_col:
         if st.button("📄 Générer le rapport PDF", key="export_pdf"):
             from modules.export_pdf import generer_rapport_pdf
-            generer_rapport_pdf(
+            fichier_pdf = generer_rapport_pdf(
                 nom_projet=st.session_state.get("nom_projet", ""),
                 partie=st.session_state.get("partie", ""),
                 date=st.session_state.get("date", ""),
@@ -42,7 +42,17 @@ def show():
                 V_lim=st.session_state.get("V_lim", 0)
             )
 
+            with open(fichier_pdf, "rb") as f:
+                st.download_button(
+                    label="⬇️ Télécharger le rapport PDF",
+                    data=f,
+                    file_name=fichier_pdf,
+                    mime="application/pdf"
+                )
+                st.success("✅ Rapport généré avec succès.")
+
     # Données béton
+
     with open("beton_classes.json", "r") as f:
         beton_data = json.load(f)
 
