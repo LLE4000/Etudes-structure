@@ -162,8 +162,8 @@ def show():
 
             st.markdown(f"**τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin} {icone}**")
 
-        # Dimensionnement des étriers
-            st.markdown("**Calcul du pas des étriers**")
+            # Dimensionnement des étriers
+            st.markdown("_Calcul du pas des étriers_")
             etrier_col1, etrier_col2, etrier_col3 = st.columns(3)
             with etrier_col1:
                 n_etriers = st.selectbox("Nb brins", list(range(1, 5)), key="n_etriers")
@@ -181,33 +181,3 @@ def show():
                 icone_pas = "⚠️"
 
             st.markdown(f"**Pas théorique = {pas_theorique:.1f} cm → Pas choisi = {pas_choisi:.1f} cm {icone_pas}**")
-
-
-        st.markdown("**Étriers (valeur réduite)**" if v_sup else "**Étriers**")
-        if v_sup and V_lim > 0:
-            tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
-            if tau_r <= tau_1:
-                besoin_r = "Pas besoin d’étriers"
-                icone_r = "✅✅"
-                tau_lim_aff_r = tau_1
-                nom_lim_r = "τ_adm_I"
-            elif tau_r <= tau_2:
-                besoin_r = "Besoin d’étriers"
-                icone_r = "✅"
-                tau_lim_aff_r = tau_2
-                nom_lim_r = "τ_adm_II"
-            elif tau_r <= tau_4:
-                besoin_r = "Besoin de barres inclinées et d’étriers"
-                icone_r = "⚠️"
-                tau_lim_aff_r = tau_4
-                nom_lim_r = "τ_adm_IV"
-            else:
-                besoin_r = "Pas acceptable "
-                icone_r = "❌"
-                tau_lim_aff_r = tau_4
-                nom_lim_r = "τ_adm_IV"
-
-            st.markdown(f"**τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r} {icone_r}**")
-            st.markdown("_En construction : calcul de la section d’étriers avec V réduit._")
-        elif not v_sup:
-            st.markdown("_En construction : calcul de la section d’étriers selon effort tranchant standard._")
