@@ -43,7 +43,7 @@ def show():
         with col2:
             fyk = st.selectbox("Qualité d'acier [N/mm²]", ["400", "500"], index=1)
 
-        col1, col2, col3 = st.columns(3)
+        col3, col4, col5 = st.columns(3)
         with col1:
             b = st.number_input("Larg. [cm]", 5, 1000, 20, key="b")
         with col2:
