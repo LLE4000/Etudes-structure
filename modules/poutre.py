@@ -162,6 +162,27 @@ def show():
 
             st.markdown(f"**τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin} {icone}**")
 
+        # Dimensionnement des étriers
+            st.markdown("### Calcul du pas des étriers")
+            etrier_col1, etrier_col2, etrier_col3 = st.columns(3)
+            with etrier_col1:
+                n_etriers = st.selectbox("Nb brins", list(range(1, 5)), key="n_etriers")
+            with etrier_col2:
+                d_etrier = st.selectbox("Ø étriers (mm)", [6, 8, 10], key="ø_etrier")
+            with etrier_col3:
+                pas_choisi = st.number_input("Pas choisi (cm)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier")
+
+            Ast_etrier = n_etriers * math.pi * (d_etrier / 2) ** 2  # mm²
+            pas_theorique = Ast_etrier * (int(fyk)/1.5) * d / (10 * V * 1e3)
+            icone_pas = "❌"
+            if pas_choisi <= pas_theorique:
+                icone_pas = "✅"
+            elif pas_choisi <= 30:
+                icone_pas = "⚠️"
+
+            st.markdown(f"**Pas théorique = {pas_theorique:.1f} cm → Pas choisi = {pas_choisi:.1f} cm {icone_pas}**")
+
+
         st.markdown("**Étriers (valeur réduite)**" if v_sup else "**Étriers**")
         if v_sup and V_lim > 0:
             tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
