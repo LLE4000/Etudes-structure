@@ -131,8 +131,7 @@ def show():
                 As_sup_choisi = n_sup * (math.pi * (d_sup / 2) ** 2)
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
-
-            # === Vérification de l'effort tranchant standard ===
+                # === Vérification de l'effort tranchant standard ===
 st.markdown("### ⚙️ Vérification de l'effort tranchant")
 
 tau = V * 1e3 / (0.75 * b * h * 100)
@@ -163,7 +162,9 @@ else:
 
 st.markdown(f"**τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin} {icone}**")
 
+# === Détermination des étriers (standard)
 st.markdown("_Détermination des étriers_")
+
 Ast_etrier_pre = st.session_state.get("n_etriers", 2) * math.pi * (st.session_state.get("ø_etrier", 8) / 2) ** 2
 pas_theorique_pre = Ast_etrier_pre * (int(fyk) / 1.5) * d / (10 * V * 1e3)
 st.markdown(f"**Pas théorique = {pas_theorique_pre:.1f} cm**")
@@ -188,55 +189,54 @@ else:
 
 st.markdown(f"**→ Pas choisi = {pas_choisi:.1f} cm {icone_pas}**")
 
-# === Vérification effort tranchant réduit ===
+# === Vérification effort tranchant réduit (si activé)
 if v_sup and V_lim > 0:
-    with st.container():
-        st.markdown("---")
-        st.markdown("### ⚙️ Vérification de l'effort tranchant réduit")
+    st.markdown("---")
+    st.markdown("### ⚙️ Vérification de l'effort tranchant réduit")
 
-        tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
+    tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
 
-        if tau_r <= tau_1:
-            besoin_r = "Pas besoin d’étriers"
-            icone_r = "✅✅"
-            tau_lim_aff_r = tau_1
-            nom_lim_r = "τ_adm_I"
-        elif tau_r <= tau_2:
-            besoin_r = "Besoin d’étriers"
-            icone_r = "✅"
-            tau_lim_aff_r = tau_2
-            nom_lim_r = "τ_adm_II"
-        elif tau_r <= tau_4:
-            besoin_r = "Besoin de barres inclinées et d’étriers"
-            icone_r = "⚠️"
-            tau_lim_aff_r = tau_4
-            nom_lim_r = "τ_adm_IV"
-        else:
-            besoin_r = "Pas acceptable"
-            icone_r = "❌"
-            tau_lim_aff_r = tau_4
-            nom_lim_r = "τ_adm_IV"
+    if tau_r <= tau_1:
+        besoin_r = "Pas besoin d’étriers"
+        icone_r = "✅✅"
+        tau_lim_aff_r = tau_1
+        nom_lim_r = "τ_adm_I"
+    elif tau_r <= tau_2:
+        besoin_r = "Besoin d’étriers"
+        icone_r = "✅"
+        tau_lim_aff_r = tau_2
+        nom_lim_r = "τ_adm_II"
+    elif tau_r <= tau_4:
+        besoin_r = "Besoin de barres inclinées et d’étriers"
+        icone_r = "⚠️"
+        tau_lim_aff_r = tau_4
+        nom_lim_r = "τ_adm_IV"
+    else:
+        besoin_r = "Pas acceptable"
+        icone_r = "❌"
+        tau_lim_aff_r = tau_4
+        nom_lim_r = "τ_adm_IV"
 
-        st.markdown(f"**τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r} {icone_r}**")
+    st.markdown(f"**τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r} {icone_r}**")
 
-        st.markdown("_Détermination des étriers (réduit)_")
-        col_r1, col_r2, col_r3 = st.columns(3)
-        with col_r1:
-            n_etriers_r = st.selectbox("Nbr. étriers (réduit)", list(range(1, 5)), key="n_etriers_r")
-        with col_r2:
-            d_etrier_r = st.selectbox("Ø étriers (mm) (réduit)", [6, 8, 10], key="ø_etrier_r")
-        with col_r3:
-            pas_choisi_r = st.number_input("Pas choisi (cm) (réduit)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier_r")
+    st.markdown("_Détermination des étriers (réduit)_")
+    col_r1, col_r2, col_r3 = st.columns(3)
+    with col_r1:
+        n_etriers_r = st.selectbox("Nbr. étriers (réduit)", list(range(1, 5)), key="n_etriers_r")
+    with col_r2:
+        d_etrier_r = st.selectbox("Ø étriers (mm) (réduit)", [6, 8, 10], key="ø_etrier_r")
+    with col_r3:
+        pas_choisi_r = st.number_input("Pas choisi (cm) (réduit)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier_r")
 
-        Ast_etrier_r = n_etriers_r * math.pi * (d_etrier_r / 2) ** 2
-        pas_theorique_r = Ast_etrier_r * (int(fyk) / 1.5) * d / (10 * V_lim * 1e3)
-        st.markdown(f"**Pas théorique (réduit) = {pas_theorique_r:.1f} cm**")
+    Ast_etrier_r = n_etriers_r * math.pi * (d_etrier_r / 2) ** 2
+    pas_theorique_r = Ast_etrier_r * (int(fyk) / 1.5) * d / (10 * V_lim * 1e3)
+    st.markdown(f"**Pas théorique (réduit) = {pas_theorique_r:.1f} cm**")
 
-        if pas_choisi_r <= pas_theorique_r:
-            icone_pas_r = "✅"
-        elif pas_choisi_r <= 30:
-            icone_pas_r = "⚠️"
-        else:
-            icone_pas_r = "❌"
+    if pas_choisi_r <= pas_theorique_r:
+        icone_pas_r = "✅"
+    elif pas_choisi_r <= 30:
+        icone_pas_r = "⚠️"
+    else:
+        icone_pas_r = "❌"
 
-        st.markdown(f"**→ Pas choisi = {pas_choisi_r:.1f} cm {icone_pas_r}**")
+    st.markdown(f"**→ Pas choisi = {pas_choisi_r:.1f} cm {icone_pas_r}**")
