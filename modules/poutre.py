@@ -188,3 +188,61 @@ def show():
                 icone_pas = "❌"
 
             st.markdown(f"**→ Pas choisi = {pas_choisi:.1f} cm {icone_pas}**")
+
+                    if v_sup and V_lim > 0:
+            st.markdown("**Vérification de l'effort tranchant réduit**")
+            tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
+            tau_1 = 0.016 * fck_cube / 1.05
+            tau_2 = 0.032 * fck_cube / 1.05
+            tau_4 = 0.064 * fck_cube / 1.05
+
+            if tau_r <= tau_1:
+                besoin_r = "Pas besoin d’étriers"
+                icone_r = "✅✅"
+                tau_lim_aff_r = tau_1
+                nom_lim_r = "τ_adm_I"
+            elif tau_r <= tau_2:
+                besoin_r = "Besoin d’étriers"
+                icone_r = "✅"
+                tau_lim_aff_r = tau_2
+                nom_lim_r = "τ_adm_II"
+            elif tau_r <= tau_4:
+                besoin_r = "Besoin de barres inclinées et d’étriers"
+                icone_r = "⚠️"
+                tau_lim_aff_r = tau_4
+                nom_lim_r = "τ_adm_IV"
+            else:
+                besoin_r = "Pas acceptable"
+                icone_r = "❌"
+                tau_lim_aff_r = tau_4
+                nom_lim_r = "τ_adm_IV"
+
+            st.markdown(f"**τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r} {icone_r}**")
+
+            # Affichage du pas théorique AVANT les champs
+            Ast_etrier_pre_r = st.session_state.get("n_etriers", 2) * math.pi * (st.session_state.get("ø_etrier", 8) / 2) ** 2
+            pas_theorique_pre_r = Ast_etrier_pre_r * (int(fyk) / 1.5) * d / (10 * V_lim * 1e3)
+            st.markdown(f"**Pas théorique (réduit) = {pas_theorique_pre_r:.1f} cm**")
+
+            st.markdown("_Calcul du pas des étriers avec V réduit_")
+            etrier_col1r, etrier_col2r, etrier_col3r = st.columns(3)
+            with etrier_col1r:
+                n_etriers_r = st.selectbox("Nb brins (réduit)", list(range(1, 5)), key="n_etriers_r")
+            with etrier_col2r:
+                d_etrier_r = st.selectbox("Ø étriers (mm) (réduit)", [6, 8, 10], key="ø_etrier_r")
+            with etrier_col3r:
+                pas_choisi_r = st.number_input("Pas choisi (cm) (réduit)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier_r")
+
+            # Nouveau calcul du pas théorique avec les vraies valeurs sélectionnées
+            Ast_etrier_r = n_etriers_r * math.pi * (d_etrier_r / 2) ** 2
+            pas_theorique_r = Ast_etrier_r * (int(fyk)/1.5) * d / (10 * V_lim * 1e3)
+
+            if pas_choisi_r <= pas_theorique_r:
+                icone_pas_r = "✅"
+            elif pas_choisi_r <= 30:
+                icone_pas_r = "⚠️"
+            else:
+                icone_pas_r = "❌"
+
+            st.markdown(f"**→ Pas choisi = {pas_choisi_r:.1f} cm {icone_pas_r}**")
+
