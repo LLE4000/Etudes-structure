@@ -77,7 +77,7 @@ def show():
     with result_col_droite:
         st.markdown("### Dimensionnement")
 
-        st.markdown("**Vérification de la hauteur**")
+        st.markdown("**🧮 Vérification de la hauteur 🧮**")
         d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10
         st.markdown(f"**h,min** = {d_calcule:.1f} cm")
         hauteur_col, icone_col = st.columns([10, 1])
@@ -91,7 +91,7 @@ def show():
         As_min = 0.0013 * b * h * 1e2
         As_max = 0.04 * b * h * 1e2
 
-        st.markdown("**Armatures inférieures**" if not m_sup else "**Armatures inférieures (avec M_sup)**")
+        st.markdown("**🧮 Armatures inférieures 🧮**" if not m_sup else "**Armatures inférieures (avec M_sup)**")
 
         as_col1, as_col2, as_col3 = st.columns(3)
         with as_col1:
@@ -112,7 +112,7 @@ def show():
             st.markdown(f"Section choisie = **{As_choisi:.0f} mm²** {'✅' if ok1 else '❌'}")
 
         if m_sup:
-            st.markdown("**Armatures supérieures**")
+            st.markdown("**🧮 Armatures supérieures 🧮**")
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10)
             sup_col1, sup_col2, sup_col3 = st.columns(3)
             with sup_col1:
@@ -134,7 +134,7 @@ def show():
                 
                 # === Vérification de l'effort tranchant standard ===
         
-        st.markdown("**⚙️ Vérification de l'effort tranchant**")
+        st.markdown("**🧮 Vérification de l'effort tranchant 🧮**")
         
         if V > 0:
             tau = V * 1e3 / (0.75 * b * h * 100)
@@ -165,7 +165,7 @@ def show():
         
             st.markdown(f"**τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin} {icone}**")
         
-            st.markdown("_Détermination des étriers_")
+            st.markdown("🧮 Détermination des étriers 🧮")
             Ast_etrier_pre = st.session_state.get("n_etriers", 2) * math.pi * (st.session_state.get("ø_etrier", 8) / 2) ** 2
             pas_theorique_pre = Ast_etrier_pre * (int(fyk) / 1.5) * d / (10 * V * 1e3)
             st.markdown(f"**Pas théorique = {pas_theorique_pre:.1f} cm**")
@@ -196,7 +196,7 @@ def show():
         
         if v_sup:
             if V_lim > 0:
-                st.markdown("**⚙️ Vérification de l'effort tranchant réduit**")
+                st.markdown("**🧮 Vérification de l'effort tranchant réduit 🧮**")
         
                 tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
         
@@ -223,7 +223,7 @@ def show():
         
                 st.markdown(f"**τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r} {icone_r}**")
         
-                st.markdown("_Détermination des étriers (réduit)_")
+                st.markdown("🧮 Détermination des étriers réduit 🧮")
                 col_r1, col_r2, col_r3 = st.columns(3)
                 with col_r1:
                     n_etriers_r = st.selectbox("Nbr. étriers (réduit)", list(range(1, 5)), key="n_etriers_r")
