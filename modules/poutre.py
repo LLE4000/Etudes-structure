@@ -49,7 +49,7 @@ def show():
         with col2:
             h = st.number_input("Haut. [cm]", 5, 1000, 35, key="h")
         with col3:
-            enrobage = st.number_input("Enrob. (cm)", 1, 100, 5.5, key="enrobage")
+            enrobage = st.number_input("Enrob. (cm)", 1, 100, 5, key="enrobage")
 
         fck = beton_data[beton]["fck"]
         fck_cube = beton_data[beton]["fck_cube"]
