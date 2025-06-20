@@ -132,12 +132,12 @@ def show():
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
 
-                    st.markdown("**Vérification de l'effort tranchant**")
-        if v_sup and V_lim > 0:
+                st.markdown("**Vérification de l'effort tranchant**")
+                if v_sup and V_lim > 0:
     with st.container():
         st.markdown("---")
         st.markdown("### ⚙️ Vérification de l'effort tranchant réduit")
-        
+
         tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
         tau_1 = 0.016 * fck_cube / 1.05
         tau_2 = 0.032 * fck_cube / 1.05
@@ -171,16 +171,24 @@ def show():
         # Détermination des étriers (réduit)
         st.markdown("_Détermination des étriers (réduit)_")
         col_r1, col_r2, col_r3 = st.columns(3)
+
         with col_r1:
-            n_etriers_r = st.selectbox("Nbr. étriers (réduit)", list(range(1, 5)), key="n_etriers_r")
+            n_etriers_r = st.selectbox(
+                "Nbr. étriers (réduit)", list(range(1, 5)), key="n_etriers_r"
+            )
         with col_r2:
-            d_etrier_r = st.selectbox("Ø étriers (mm) (réduit)", [6, 8, 10], key="ø_etrier_r")
+            d_etrier_r = st.selectbox(
+                "Ø étriers (mm) (réduit)", [6, 8, 10], key="ø_etrier_r"
+            )
         with col_r3:
-            pas_choisi_r = st.number_input("Pas choisi (cm) (réduit)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier_r")
+            pas_choisi_r = st.number_input(
+                "Pas choisi (cm) (réduit)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier_r"
+            )
 
         # Calcul du pas théorique
         Ast_etrier_r = n_etriers_r * math.pi * (d_etrier_r / 2) ** 2
-        pas_theorique_r = Ast_etrier_r * (int(fyk)/1.5) * d / (10 * V_lim * 1e3)
+        pas_theorique_r = Ast_etrier_r * (int(fyk) / 1.5) * d / (10 * V_lim * 1e3)
+
         st.markdown(f"**Pas théorique (réduit) = {pas_theorique_r:.1f} cm**")
 
         # Validation
@@ -191,4 +199,8 @@ def show():
         else:
             icone_pas_r = "❌"
 
-        st.markdown(f"**→ Pas choisi = {pas_choisi_r:.1f} cm {icone_pas_r}**")
+        st.markdown(
+            f"**→ Pas choisi = {pas_choisi_r:.1f} cm {icone_pas_r}**"
+        )
+
+        
