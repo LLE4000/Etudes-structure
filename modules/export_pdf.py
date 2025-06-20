@@ -1,87 +1,67 @@
 from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 from reportlab.lib.units import cm
-from reportlab.pdfgen import canvas
-from datetime import datetime
+
 
 def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enrobage, M_inf, M_sup, V, V_lim):
-    from pathlib import Path
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib import colors
-
-    file_path = f"{nom_projet or 'rapport_poutre'}_{datetime.today().strftime('%Y%m%d')}.pdf"
-    doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
+    nom_fichier = f"rapport_{nom_projet.replace(' ', '_')}.pdf"
+    doc = SimpleDocTemplate(nom_fichier, pagesize=A4,
+                            rightMargin=2*cm, leftMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
 
     styles = getSampleStyleSheet()
-    story = []
+    styles.add(ParagraphStyle(name='TitreSection', fontSize=14, leading=16, spaceAfter=12, textColor=colors.HexColor('#003366'), alignment=0, fontName="Helvetica-Bold"))
+    styles.add(ParagraphStyle(name='Texte', fontSize=10, leading=14))
+    styles.add(ParagraphStyle(name='Note', fontSize=9, leading=12, textColor=colors.grey))
 
-    def add_title(text):
-        story.append(Paragraph(f"<b>{text}</b>", styles["Heading2"]))
-        story.append(Spacer(1, 12))
-
-    def add_para(text):
-        story.append(Paragraph(text, styles["Normal"]))
-        story.append(Spacer(1, 8))
-
-    def add_table(data):
-        t = Table(data, hAlign='LEFT')
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ]))
-        story.append(t)
-        story.append(Spacer(1, 12))
+    elements = []
 
     # Titre
-    add_title("Rapport de dimensionnement - Poutre en béton armé")
+    elements.append(Paragraph("Rapport de dimensionnement – Poutre en béton armé", styles['TitreSection']))
 
     # Infos projet
-    add_para(f"Projet : {nom_projet or '-'}")
-    add_para(f"Partie : {partie or '-'}")
-    add_para(f"Date : {date or datetime.today().strftime('%d/%m/%Y')}   |   Indice : {indice or '0'}")
+    infos = f"<b>Projet :</b> {nom_projet} &nbsp;&nbsp;&nbsp; <b>Partie :</b> {partie}<br/><b>Date :</b> {date} &nbsp;&nbsp;&nbsp; <b>Indice :</b> {indice}"
+    elements.append(Paragraph(infos, styles['Texte']))
+    elements.append(Spacer(1, 12))
 
-    # Paramètres géométriques et matériaux
-    add_title("Caractéristiques de la poutre")
-    add_table([
-        ["Paramètre", "Valeur"],
-        ["Classe béton", beton],
-        ["Qualité acier", f"{fyk} N/mm²"],
-        ["Largeur (b)", f"{b:.1f} cm"],
-        ["Hauteur (h)", f"{h:.1f} cm"],
-        ["Enrobage", f"{enrobage:.1f} cm"]
-    ])
+    # Caractéristiques
+    elements.append(Paragraph("Caractéristiques de la poutre", styles['TitreSection']))
+    data = [
+        ["Classe de béton", beton],
+        ["Acier (fyk)", f"{fyk} N/mm²"],
+        ["Dimensions (b x h)", f"{b} cm x {h} cm"],
+        ["Enrobage", f"{enrobage} cm"]
+    ]
+    table = Table(data, hAlign='LEFT', colWidths=[6*cm, 6*cm])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 12))
 
-    # Sollicitations
-    add_title("Sollicitations")
-    add_table([
-        ["Effort", "Valeur"],
-        ["Moment inférieur", f"{M_inf:.2f} kN.m"],
-        ["Moment supérieur", f"{M_sup:.2f} kN.m"] if M_sup else ["Moment supérieur", "-"],
-        ["Effort tranchant", f"{V:.2f} kN"],
-        ["Effort tranchant réduit", f"{V_lim:.2f} kN"] if V_lim else ["Effort tranchant réduit", "-"]
-    ])
+    # Moments
+    elements.append(Paragraph("Moments fléchissants", styles['TitreSection']))
+    moments_text = f"Moment inférieur M<sub>inf</sub> = {M_inf:.1f} kN.m"
+    if M_sup > 0:
+        moments_text += f"<br/>Moment supérieur M<sub>sup</sub> = {M_sup:.1f} kN.m"
+    elements.append(Paragraph(moments_text, styles['Texte']))
+    elements.append(Spacer(1, 12))
 
-    # Formule hauteur utile
-    alpha_b = 0.85
-    mu_val = 12.96
-    Mmax = max(abs(M_inf), abs(M_sup))
-    h_min = ((alpha_b * Mmax * 1e6) / (0.1708 * b * 10 * mu_val))**0.5 / 10
-    add_title("Hauteur utile minimale")
-    add_para(f"h = √((0,85 × {Mmax:.1f}×10⁶)/(0,1708 × {b*10:.0f}mm × 12,96)) = {h_min:.1f} cm")
+    # Efforts tranchants
+    elements.append(Paragraph("Efforts tranchants", styles['TitreSection']))
+    efforts_text = f"Effort tranchant V = {V:.1f} kN"
+    if V_lim > 0:
+        efforts_text += f"<br/>Effort tranchant réduit V<sub>lim</sub> = {V_lim:.1f} kN"
+    elements.append(Paragraph(efforts_text, styles['Texte']))
+    elements.append(Spacer(1, 24))
 
-    # Armatures
-    d = h - enrobage
-    fyd = int(fyk) / 1.5
-    As_inf = (M_inf * 1e6) / (fyd * 0.9 * d * 10)
-    As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10) if M_sup else 0
+    # Remarques
+    elements.append(Paragraph("Note : Les vérifications détaillées sont disponibles dans l'application Streamlit.", styles['Note']))
 
-    add_title("Armatures")
-    add_table([
-        ["Zone", "Moment", "Formule", "Résultat"],
-        ["Inférieure", f"{M_inf:.1f} kN.m", f"(M × 10⁶)/(fyd × 0.9 × d × 10)", f"{As_inf:.0f} mm²"],
-        ["Supérieure", f"{M_sup:.1f} kN.m", f"(M × 10⁶)/(fyd × 0.9 × d × 10)", f"{As_sup:.0f} mm²"] if M_sup else ["Supérieure", "-", "-", "-"]
-    ])
-
-    doc.build(story)
-    print(f"PDF généré : {file_path}")
+    doc.build(elements)
+    return nom_fichier
