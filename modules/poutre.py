@@ -155,7 +155,7 @@ def show():
                 tau_lim_aff = tau_4
                 nom_lim = "τ_adm_IV"
             else:
-                besoin = "Non conforme (au-dessus de la limite)"
+                besoin = "Pas acceptable "
                 icone = "❌"
                 tau_lim_aff = tau_4
                 nom_lim = "τ_adm_IV"
@@ -181,7 +181,7 @@ def show():
                 tau_lim_aff_r = tau_4
                 nom_lim_r = "τ_adm_IV"
             else:
-                besoin_r = "Non conforme (au-dessus de la limite)"
+                besoin_r = "Pas acceptable "
                 icone_r = "❌"
                 tau_lim_aff_r = tau_4
                 nom_lim_r = "τ_adm_IV"
