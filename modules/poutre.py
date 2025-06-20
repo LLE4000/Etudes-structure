@@ -37,7 +37,7 @@ def show():
             st.text_input("", placeholder="Indice", value="0", key="indice")
 
         st.markdown("### Caractéristiques de la poutre")
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns(3)
         with col1:
             beton = st.selectbox("Classe de béton", list(beton_data.keys()), index=2)
         with col2:
