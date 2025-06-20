@@ -132,7 +132,7 @@ def show():
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
                 # === Vérification de l'effort tranchant standard ===
-        st.markdown("### ⚙️ Vérification de l'effort tranchant")
+st.markdown("### ⚙️ Vérification de l'effort tranchant")
 
 if V > 0:
     tau = V * 1e3 / (0.75 * b * h * 100)
@@ -190,14 +190,14 @@ if V > 0:
 else:
     st.info("⚠️ L'effort tranchant V est nul → vérification des étriers ignorée.")
 
-        
-            # === Vérification effort tranchant réduit (si activé)
-            if v_sup and V_lim > 0:
+# === Vérification de l'effort tranchant réduit (si activé) ===
+if v_sup:
+    if V_lim > 0:
         st.markdown("---")
         st.markdown("### ⚙️ Vérification de l'effort tranchant réduit")
-    
+
         tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
-    
+
         if tau_r <= tau_1:
             besoin_r = "Pas besoin d’étriers"
             icone_r = "✅✅"
@@ -218,9 +218,9 @@ else:
             icone_r = "❌"
             tau_lim_aff_r = tau_4
             nom_lim_r = "τ_adm_IV"
-    
+
         st.markdown(f"**τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r} {icone_r}**")
-    
+
         st.markdown("_Détermination des étriers (réduit)_")
         col_r1, col_r2, col_r3 = st.columns(3)
         with col_r1:
@@ -229,18 +229,18 @@ else:
             d_etrier_r = st.selectbox("Ø étriers (mm) (réduit)", [6, 8, 10], key="ø_etrier_r")
         with col_r3:
             pas_choisi_r = st.number_input("Pas choisi (cm) (réduit)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier_r")
-    
+
         Ast_etrier_r = n_etriers_r * math.pi * (d_etrier_r / 2) ** 2
         pas_theorique_r = Ast_etrier_r * (int(fyk) / 1.5) * d / (10 * V_lim * 1e3)
         st.markdown(f"**Pas théorique (réduit) = {pas_theorique_r:.1f} cm**")
-    
+
         if pas_choisi_r <= pas_theorique_r:
             icone_pas_r = "✅"
         elif pas_choisi_r <= 30:
             icone_pas_r = "⚠️"
         else:
             icone_pas_r = "❌"
-    
+
         st.markdown(f"**→ Pas choisi = {pas_choisi_r:.1f} cm {icone_pas_r}**")
-    elif v_sup:
+    else:
         st.info("⚠️ L'effort tranchant réduit V_lim est nul → vérification réduite ignorée.")
