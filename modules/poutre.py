@@ -193,8 +193,7 @@ def show():
         # === Vérification de l'effort tranchant réduit (si activé) ===
         if v_sup:
             if V_lim > 0:
-                st.markdown("---")
-                st.markdown("### ⚙️ Vérification de l'effort tranchant réduit")
+                st.markdown("**⚙️ Vérification de l'effort tranchant réduit")
         
                 tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
         
