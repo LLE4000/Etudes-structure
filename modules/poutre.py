@@ -131,7 +131,9 @@ def show():
                 As_sup_choisi = n_sup * (math.pi * (d_sup / 2) ** 2)
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
+                
                 # === Vérification de l'effort tranchant standard ===
+        
         st.markdown("### ⚙️ Vérification de l'effort tranchant")
         
         if V > 0:
@@ -191,9 +193,10 @@ def show():
             st.info("⚠️ L'effort tranchant V est nul → vérification des étriers ignorée.")
         
         # === Vérification de l'effort tranchant réduit (si activé) ===
+        
         if v_sup:
             if V_lim > 0:
-                st.markdown("**⚙️ Vérification de l'effort tranchant réduit")
+                st.markdown("**⚙️ Vérification de l'effort tranchant réduit**")
         
                 tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
         
