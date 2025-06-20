@@ -3,6 +3,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
+import math
 
 def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enrobage, M_inf, M_sup, V, V_lim):
     nom_fichier = f"rapport_{nom_projet.replace(' ', '_')}.pdf"
@@ -11,18 +12,23 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
                             topMargin=2 * cm, bottomMargin=2 * cm)
 
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='TitreSection', fontSize=14, leading=16, spaceAfter=12, textColor=colors.HexColor('#003366'), alignment=0, fontName="Helvetica-Bold"))
+    styles.add(ParagraphStyle(name='TitreSection', fontSize=14, leading=16, spaceAfter=12,
+                              textColor=colors.HexColor('#003366'), alignment=0, fontName="Helvetica-Bold"))
     styles.add(ParagraphStyle(name='Texte', fontSize=10, leading=14))
     styles.add(ParagraphStyle(name='Formule', fontSize=9, leading=12, textColor=colors.darkblue))
     styles.add(ParagraphStyle(name='Note', fontSize=9, leading=12, textColor=colors.grey))
 
     elements = []
 
+    # Titre
     elements.append(Paragraph("Rapport de dimensionnement – Poutre en béton armé", styles['TitreSection']))
+
+    # Infos projet
     infos = f"<b>Projet :</b> {nom_projet} &nbsp;&nbsp;&nbsp; <b>Partie :</b> {partie}<br/><b>Date :</b> {date} &nbsp;&nbsp;&nbsp; <b>Indice :</b> {indice}"
     elements.append(Paragraph(infos, styles['Texte']))
-    elements.append(Spacer(1, 1.2 * cm))
+    elements.append(Spacer(1, 12))
 
+    # Caractéristiques de la poutre
     elements.append(Paragraph("Caractéristiques de la poutre", styles['TitreSection']))
     data = [
         ["Classe de béton", beton],
@@ -37,15 +43,48 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
     elements.append(table)
-    elements.append(Spacer(1, 1.2 * cm))
+    elements.append(Spacer(1, 12))
 
+    # Moments fléchissants
     elements.append(Paragraph("Moments fléchissants", styles['TitreSection']))
     moments_text = f"Moment inférieur M<sub>inf</sub> = {M_inf:.1f} kN.m"
     if M_sup > 0:
         moments_text += f"<br/>Moment supérieur M<sub>sup</sub> = {M_sup:.1f} kN.m"
     elements.append(Paragraph(moments_text, styles['Texte']))
-    elements.append(Spacer(1, 1.2 * cm))
+    elements.append(Spacer(1, 12))
 
-    elements.append(Paragraph("Note : Rapport généré automatiquement via l'application Streamlit.", styles['Note']))
+    # Hauteur utile minimale
+    elements.append(Paragraph("Vérification de la hauteur utile", styles['TitreSection']))
+    try:
+        alpha_b = 0.85
+        mu = 12.96
+        d_calcule = ((alpha_b * M_inf * 1e6) / (0.1708 * b * 10 * mu)) ** 0.5 / 10
+        d_min_total = d_calcule + enrobage
+        formule_d = f"h<sub>min</sub> = √[(0.85 × {M_inf:.1f} × 10⁶) / (0.1708 × {b} × 10 × 12.96)] = {d_calcule:.1f} cm"
+        elements.append(Paragraph(formule_d, styles['Formule']))
+        elements.append(Paragraph(f"➔ h<sub>min</sub> + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
+        elements.append(Spacer(1, 12))
+    except Exception as e:
+        elements.append(Paragraph(f"Erreur dans le calcul de h_min : {e}", styles['Note']))
+
+    # Efforts tranchants et étriers
+    if V > 0:
+        elements.append(Paragraph("Efforts tranchants", styles['TitreSection']))
+        tau = (V * 1e3) / (0.75 * b * h * 100)
+        tau_formula = f"τ = {V:.1f} × 10³ / (0.75 × {b} × {h} × 100) = {tau:.1f} N/cm²"
+        elements.append(Paragraph(tau_formula, styles['Formule']))
+
+        fyd = int(fyk) / 1.5 if str(fyk).isdigit() else 0
+        d = h - enrobage
+        Ast = 2 * (math.pi * (8 / 2) ** 2)  # Exemple : 2Ø8
+        pas_theo = Ast * fyd * d / (10 * V * 1e3)
+
+        elements.append(Paragraph(f"A<sub>st</sub> = {Ast:.0f} mm² ; f<sub>yd</sub> = {fyd:.1f} N/mm² ; d = {d:.1f} cm", styles['Texte']))
+        elements.append(Paragraph(f"Pas théorique = A<sub>st</sub> × f<sub>yd</sub> × d / (10 × V × 10³) = {pas_theo:.1f} cm", styles['Formule']))
+        elements.append(Spacer(1, 12))
+
+    # Note finale
+    elements.append(Paragraph("Note : Les vérifications détaillées sont disponibles dans l'application Streamlit.", styles['Note']))
+
     doc.build(elements)
     return nom_fichier
