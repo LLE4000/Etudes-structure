@@ -23,7 +23,7 @@ def show():
     if st.button("\U0001F504 Réinitialiser", key="reset_poutre"):
         st.rerun()
 
-    input_col_gauche, result_col_droite = st.columns([2, 2])
+    input_col_gauche, result_col_droite = st.columns([2, 3])
 
     # --- COLONNE GAUCHE ---
     with input_col_gauche:
