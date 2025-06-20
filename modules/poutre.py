@@ -37,17 +37,19 @@ def show():
             st.text_input("", placeholder="Indice", value="0", key="indice")
 
         st.markdown("### Caractéristiques de la poutre")
-        col1, col2, col3, col4, col5 = st.columns(5)
+        col1, col2 = st.columns(2)
+        with col1:
+            beton = st.selectbox("Classe de béton", list(beton_data.keys()), index=2)
+        with col2:
+            fyk = st.selectbox("Qualité d'acier", ["400", "500"], index=1)
+
+        col1, col2, col3 = st.columns(3)
         with col1:
             b = st.number_input("Larg. (cm)", 5, 1000, 20, key="b")
         with col2:
             h = st.number_input("Haut. (cm)", 5, 1000, 35, key="h")
         with col3:
             enrobage = st.number_input("Enrob. (cm)", 1, 50, 5, key="enrobage")
-        with col4:
-            beton = st.selectbox("Classe de béton", list(beton_data.keys()), index=2)
-        with col5:
-            fyk = st.selectbox("Qualité d'acier", ["400", "500"], index=1)
 
         fck = beton_data[beton]["fck"]
         fck_cube = beton_data[beton]["fck_cube"]
