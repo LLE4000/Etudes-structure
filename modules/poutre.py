@@ -134,7 +134,7 @@ def show():
                 
                 # === Vérification de l'effort tranchant standard ===
         
-        st.markdown("## ⚙️ Vérification de l'effort tranchant")
+        st.markdown("** ⚙️ Vérification de l'effort tranchant**")
         
         if V > 0:
             tau = V * 1e3 / (0.75 * b * h * 100)
