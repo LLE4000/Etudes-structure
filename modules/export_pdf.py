@@ -82,7 +82,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
     # Détermination des étriers
     elements.append(Paragraph("Détermination des étriers", styles['TitreSection']))
     Ast = 2 * (3.14 * (8 / 2) ** 2)  # Exemple : 2Ø8
-    fyd = int(fyk) / 1.5
+    fyd = int(fyk) / 1.5 if str(fyk).isdigit() else 0
     d = h - enrobage
     pas_theo = Ast * fyd * d / (10 * V * 1e3) if V > 0 else 0
     elements.append(Paragraph(f"A<sub>st</sub> = {Ast:.0f} mm² ; f<sub>yd</sub> = {fyd:.1f} N/mm² ; d = {d:.1f} cm", styles['Texte']))
