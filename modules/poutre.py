@@ -50,7 +50,7 @@ def show():
         with section_col2:
             h = st.number_input("Haut. [cm]", 5, 1000, 35, key="h")
         with section_col3:
-            enrobage = st.number_input("Enrob. (cm)", 1, 100, 5, key="enrobage")
+            enrobage = st.number_input("Enrob. (cm)", min_value=0.0, max_value=100.0, value=5.0, step=0.1, key="enrobage")
 
         fck = beton_data[beton]["fck"]
         fck_cube = beton_data[beton]["fck_cube"]
