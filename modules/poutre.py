@@ -13,9 +13,30 @@ def show():
     with header_col:
         st.markdown("## Poutre en béton armé")
     with accueil_btn_col:
-        if st.button("\U0001F3E0 Accueil", key="retour_accueil_poutre"):
-            st.session_state.retour_accueil_demande = True
-            st.experimental_rerun()
+        reset_col, export_col = st.columns([1, 2])
+
+with reset_col:
+    if st.button("🔄 Réinitialiser", key="reset_poutre"):
+        st.rerun()
+
+with export_col:
+    if st.button("📄 Générer le rapport PDF", key="export_pdf"):
+        from modules.export_pdf import generer_rapport_pdf
+        generer_rapport_pdf(
+            nom_projet=st.session_state.get("nom_projet", ""),
+            partie=st.session_state.get("partie", ""),
+            date=st.session_state.get("date", ""),
+            indice=st.session_state.get("indice", ""),
+            beton=beton,
+            fyk=fyk,
+            b=b,
+            h=h,
+            enrobage=enrobage,
+            M_inf=M_inf,
+            M_sup=st.session_state.get("M_sup", 0) if m_sup else 0,
+            V=V,
+            V_lim=V_lim if v_sup else 0
+        )
 
     with open("beton_classes.json", "r") as f:
         beton_data = json.load(f)
