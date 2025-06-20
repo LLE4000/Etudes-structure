@@ -163,7 +163,7 @@ def show():
             st.markdown(f"**τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin} {icone}**")
 
         # Dimensionnement des étriers
-            st.markdown("### Calcul du pas des étriers")
+            st.markdown("**Calcul du pas des étriers**")
             etrier_col1, etrier_col2, etrier_col3 = st.columns(3)
             with etrier_col1:
                 n_etriers = st.selectbox("Nb brins", list(range(1, 5)), key="n_etriers")
