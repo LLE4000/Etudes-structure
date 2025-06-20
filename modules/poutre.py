@@ -9,46 +9,47 @@ def show():
         st.session_state.retour_accueil_demande = False
         st.experimental_rerun()
 
-    col1, col2 = st.columns([6, 1])
-    with col1:
+    header_col, accueil_btn_col = st.columns([6, 1])
+    with header_col:
         st.markdown("## Poutre en béton armé")
-    with col2:
-        if st.button("🏠 Accueil", key="retour_accueil_poutre"):
+    with accueil_btn_col:
+        if st.button("\U0001F3E0 Accueil", key="retour_accueil_poutre"):
             st.session_state.retour_accueil_demande = True
             st.experimental_rerun()
 
     with open("beton_classes.json", "r") as f:
         beton_data = json.load(f)
 
-    if st.button("🔄 Réinitialiser", key="reset_poutre"):
+    if st.button("\U0001F504 Réinitialiser", key="reset_poutre"):
         st.rerun()
 
-    col_gauche, col_droite = st.columns([2, 2])
+    input_col_gauche, result_col_droite = st.columns([2, 2])
 
     # --- COLONNE GAUCHE ---
-    with col_gauche:
+    with input_col_gauche:
         st.markdown("### Informations sur le projet")
         st.text_input("", placeholder="Nom du projet", key="nom_projet")
         st.text_input("", placeholder="Partie", key="partie")
-        col1, col2 = st.columns(2)
-        with col1:
+
+        date_col, indice_col = st.columns(2)
+        with date_col:
             st.text_input("", placeholder="Date (jj/mm/aaaa)", value=datetime.today().strftime("%d/%m/%Y"), key="date")
-        with col2:
+        with indice_col:
             st.text_input("", placeholder="Indice", value="0", key="indice")
 
         st.markdown("### Caractéristiques de la poutre")
-        col1, col2 = st.columns(2)
-        with col1:
+        beton_col, acier_col = st.columns(2)
+        with beton_col:
             beton = st.selectbox("Classe de béton", list(beton_data.keys()), index=2)
-        with col2:
+        with acier_col:
             fyk = st.selectbox("Qualité d'acier [N/mm²]", ["400", "500"], index=1)
 
-        col3, col4, col5 = st.columns(3)
-        with col1:
+        section_col1, section_col2, section_col3 = st.columns(3)
+        with section_col1:
             b = st.number_input("Larg. [cm]", 5, 1000, 20, key="b")
-        with col2:
+        with section_col2:
             h = st.number_input("Haut. [cm]", 5, 1000, 35, key="h")
-        with col3:
+        with section_col3:
             enrobage = st.number_input("Enrob. (cm)", 1, 100, 5, key="enrobage")
 
         fck = beton_data[beton]["fck"]
@@ -58,34 +59,33 @@ def show():
         fyd = int(fyk) / 1.5
 
         st.markdown("### Sollicitations")
-        col1, col2 = st.columns(2)
-        with col1:
+        moment_col, effort_col = st.columns(2)
+        with moment_col:
             M_inf = st.number_input("Moment inférieur M (kNm)", 0.0, step=10.0)
             m_sup = st.checkbox("Ajouter un moment supérieur")
             M_max = M_inf
             if m_sup:
                 M_sup = st.number_input("Moment supérieur M_sup (kNm)", 0.0, step=10.0)
                 M_max = max(abs(M_inf), abs(M_sup))
-        with col2:
+        with effort_col:
             V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0)
             v_sup = st.checkbox("Ajouter un effort tranchant réduit")
             if v_sup:
                 V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0)
 
     # --- COLONNE DROITE ---
-    with col_droite:
+    with result_col_droite:
         st.markdown("### Dimensionnement")
 
         st.markdown("**Vérification de la hauteur**")
         d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10
         st.markdown(f"**h,min** = {d_calcule:.1f} cm")
-        col1, col2 = st.columns([10, 1])
-        with col1:
+        hauteur_col, icone_col = st.columns([10, 1])
+        with hauteur_col:
             st.markdown(f"h,min + enrobage = {d_calcule + enrobage:.1f} cm ≤ h = {h} cm")
-        with col2:
+        with icone_col:
             st.markdown("✅" if d_calcule + enrobage <= h else "❌")
 
-        # Armatures
         d = h - enrobage
         As_inf = (M_inf * 1e6) / (fyd * 0.9 * d * 10)
         As_min = 0.0013 * b * h * 1e2
@@ -93,20 +93,20 @@ def show():
 
         st.markdown("**Armatures inférieures**" if not m_sup else "**Armatures inférieures (avec M_sup)**")
 
-        col1, col2, col3 = st.columns(3)
-        with col1:
+        as_col1, as_col2, as_col3 = st.columns(3)
+        with as_col1:
             st.markdown(f"**Aₛ,inf = {As_inf:.0f} mm²**")
-        with col2:
+        with as_col2:
             st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
-        with col3:
+        with as_col3:
             st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
 
-        col1, col2, col3 = st.columns([3, 3, 4])
-        with col1:
+        choix_col1, choix_col2, choix_col3 = st.columns([3, 3, 4])
+        with choix_col1:
             n_barres = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_inf")
-        with col2:
+        with choix_col2:
             diam_barres = st.selectbox("Ø (mm)", [6, 8, 10, 12, 16, 20, 25, 32, 40], key="ø_as_inf")
-        with col3:
+        with choix_col3:
             As_choisi = n_barres * (math.pi * (diam_barres / 2) ** 2)
             ok1 = As_min <= As_choisi <= As_max and As_choisi >= As_inf
             st.markdown(f"Section choisie = **{As_choisi:.0f} mm²** {'✅' if ok1 else '❌'}")
@@ -114,25 +114,24 @@ def show():
         if m_sup:
             st.markdown("**Armatures supérieures**")
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10)
-            col1, col2, col3 = st.columns(3)
-            with col1:
+            sup_col1, sup_col2, sup_col3 = st.columns(3)
+            with sup_col1:
                 st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
-            with col2:
+            with sup_col2:
                 st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
-            with col3:
+            with sup_col3:
                 st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
 
-            col1, col2, col3 = st.columns([3, 3, 4])
-            with col1:
+            choix_sup_col1, choix_sup_col2, choix_sup_col3 = st.columns([3, 3, 4])
+            with choix_sup_col1:
                 n_sup = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_sup")
-            with col2:
+            with choix_sup_col2:
                 d_sup = st.selectbox("Ø (mm)", [6, 8, 10, 12, 16, 20, 25, 32, 40], key="ø_as_sup")
-            with col3:
+            with choix_sup_col3:
                 As_sup_choisi = n_sup * (math.pi * (d_sup / 2) ** 2)
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
 
-        # --- Vérification effort tranchant ---
         st.markdown("**Vérification de l'effort tranchant**")
         if V > 0:
             tau = V * 1e3 / (0.75 * b * h * 100)
