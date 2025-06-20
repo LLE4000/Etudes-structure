@@ -4,7 +4,6 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
 
-
 def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enrobage, M_inf, M_sup, V, V_lim):
     nom_fichier = f"rapport_{nom_projet.replace(' ', '_')}.pdf"
     doc = SimpleDocTemplate(nom_fichier, pagesize=A4,
@@ -19,15 +18,12 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
 
     elements = []
 
-    # Titre
     elements.append(Paragraph("Rapport de dimensionnement – Poutre en béton armé", styles['TitreSection']))
 
-    # Infos projet
     infos = f"<b>Projet :</b> {nom_projet} &nbsp;&nbsp;&nbsp; <b>Partie :</b> {partie}<br/><b>Date :</b> {date} &nbsp;&nbsp;&nbsp; <b>Indice :</b> {indice}"
     elements.append(Paragraph(infos, styles['Texte']))
     elements.append(Spacer(1, 12))
 
-    # Caractéristiques
     elements.append(Paragraph("Caractéristiques de la poutre", styles['TitreSection']))
     data = [
         ["Classe de béton", beton],
@@ -44,7 +40,6 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
     elements.append(table)
     elements.append(Spacer(1, 12))
 
-    # Moments
     elements.append(Paragraph("Moments fléchissants", styles['TitreSection']))
     moments_text = f"Moment inférieur M<sub>inf</sub> = {M_inf:.1f} kN.m"
     if M_sup > 0:
@@ -52,7 +47,6 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
     elements.append(Paragraph(moments_text, styles['Texte']))
     elements.append(Spacer(1, 12))
 
-    # Vérification hauteur utile
     elements.append(Paragraph("Vérification de la hauteur utile", styles['TitreSection']))
     alpha_b = 0.85
     mu = 12.96
@@ -63,7 +57,6 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
     elements.append(Paragraph(f"➜ h<sub>min</sub> + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
     elements.append(Spacer(1, 12))
 
-    # Efforts tranchants
     elements.append(Paragraph("Efforts tranchants", styles['TitreSection']))
     efforts_text = f"Effort tranchant V = {V:.1f} kN"
     if V_lim > 0:
@@ -71,30 +64,26 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
     elements.append(Paragraph(efforts_text, styles['Texte']))
     elements.append(Spacer(1, 6))
 
-    # Vérification cisaillement
     tau = (V * 1e3) / (0.75 * b * h * 100) if V > 0 else 0
-    tau_lim = 112  # valeur limite arbitraire (à remplacer selon classe béton)
+    tau_lim = 112
     tau_formula = f"τ = {V:.1f} × 10³ / (0.75 × {b} × {h} × 100) = {tau:.1f} N/cm²"
     elements.append(Paragraph(tau_formula, styles['Formule']))
     elements.append(Paragraph(f"➜ τ = {tau:.1f} N/cm² ≤ {tau_lim} N/cm² → OK", styles['Texte']))
     elements.append(Spacer(1, 12))
 
-    # Détermination des étriers
     elements.append(Paragraph("Détermination des étriers", styles['TitreSection']))
-    Ast = 2 * (3.14 * (8 / 2) ** 2)  # Exemple : 2Ø8
+    Ast = 2 * (3.14 * (8 / 2) ** 2)
     try:
-    fyk_val = int("".join(filter(str.isdigit, str(fyk))))  # extrait '500' de '500 N/mm²'
-    fyd = fyk_val / 1.5
-except:
-    fyk_val = 0
-    fyd = 0
+        fyk_val = float(fyk)
+        fyd = fyk_val / 1.5
+    except (ValueError, TypeError):
+        fyd = 0
     d = h - enrobage
     pas_theo = Ast * fyd * d / (10 * V * 1e3) if V > 0 else 0
     elements.append(Paragraph(f"A<sub>st</sub> = {Ast:.0f} mm² ; f<sub>yd</sub> = {fyd:.1f} N/mm² ; d = {d:.1f} cm", styles['Texte']))
     elements.append(Paragraph(f"Pas théorique = A<sub>st</sub> × f<sub>yd</sub> × d / (10 × V × 10³) = {pas_theo:.1f} cm", styles['Formule']))
     elements.append(Spacer(1, 18))
 
-    # Note
     elements.append(Paragraph("Note : Les vérifications détaillées sont disponibles dans l'application Streamlit.", styles['Note']))
 
     doc.build(elements)
