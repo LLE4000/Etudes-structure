@@ -132,7 +132,7 @@ def show():
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
 
-            st.markdown("**Vérification de l'effort tranchant**")
+                    st.markdown("**Vérification de l'effort tranchant**")
         if V > 0:
             tau = V * 1e3 / (0.75 * b * h * 100)
             tau_1 = 0.016 * fck_cube / 1.05
@@ -162,21 +162,19 @@ def show():
 
             st.markdown(f"**τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin} {icone}**")
 
-            # Affichage du pas théorique AVANT les champs
+            st.markdown("_Détermination des étriers_")
             Ast_etrier_pre = st.session_state.get("n_etriers", 2) * math.pi * (st.session_state.get("ø_etrier", 8) / 2) ** 2
             pas_theorique_pre = Ast_etrier_pre * (int(fyk) / 1.5) * d / (10 * V * 1e3)
             st.markdown(f"**Pas théorique = {pas_theorique_pre:.1f} cm**")
 
-            st.markdown("_Calcul du pas des étriers_")
             etrier_col1, etrier_col2, etrier_col3 = st.columns(3)
             with etrier_col1:
-                n_etriers = st.selectbox("Nb brins", list(range(1, 5)), key="n_etriers")
+                n_etriers = st.selectbox("Nbr. étriers", list(range(1, 5)), key="n_etriers")
             with etrier_col2:
                 d_etrier = st.selectbox("Ø étriers (mm)", [6, 8, 10], key="ø_etrier")
             with etrier_col3:
                 pas_choisi = st.number_input("Pas choisi (cm)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier")
 
-            # Nouveau calcul du pas théorique avec les vraies valeurs sélectionnées
             Ast_etrier = n_etriers * math.pi * (d_etrier / 2) ** 2
             pas_theorique = Ast_etrier * (int(fyk)/1.5) * d / (10 * V * 1e3)
 
@@ -189,7 +187,7 @@ def show():
 
             st.markdown(f"**→ Pas choisi = {pas_choisi:.1f} cm {icone_pas}**")
 
-                    if v_sup and V_lim > 0:
+        if v_sup and V_lim > 0:
             st.markdown("**Vérification de l'effort tranchant réduit**")
             tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
             tau_1 = 0.016 * fck_cube / 1.05
@@ -219,21 +217,19 @@ def show():
 
             st.markdown(f"**τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r} {icone_r}**")
 
-            # Affichage du pas théorique AVANT les champs
-            Ast_etrier_pre_r = st.session_state.get("n_etriers", 2) * math.pi * (st.session_state.get("ø_etrier", 8) / 2) ** 2
+            st.markdown("_Détermination des étriers (réduit)_")
+            Ast_etrier_pre_r = st.session_state.get("n_etriers_r", 2) * math.pi * (st.session_state.get("ø_etrier_r", 8) / 2) ** 2
             pas_theorique_pre_r = Ast_etrier_pre_r * (int(fyk) / 1.5) * d / (10 * V_lim * 1e3)
             st.markdown(f"**Pas théorique (réduit) = {pas_theorique_pre_r:.1f} cm**")
 
-            st.markdown("_Calcul du pas des étriers avec V réduit_")
             etrier_col1r, etrier_col2r, etrier_col3r = st.columns(3)
             with etrier_col1r:
-                n_etriers_r = st.selectbox("Nb brins (réduit)", list(range(1, 5)), key="n_etriers_r")
+                n_etriers_r = st.selectbox("Nbr. étriers (réduit)", list(range(1, 5)), key="n_etriers_r")
             with etrier_col2r:
                 d_etrier_r = st.selectbox("Ø étriers (mm) (réduit)", [6, 8, 10], key="ø_etrier_r")
             with etrier_col3r:
                 pas_choisi_r = st.number_input("Pas choisi (cm) (réduit)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier_r")
 
-            # Nouveau calcul du pas théorique avec les vraies valeurs sélectionnées
             Ast_etrier_r = n_etriers_r * math.pi * (d_etrier_r / 2) ** 2
             pas_theorique_r = Ast_etrier_r * (int(fyk)/1.5) * d / (10 * V_lim * 1e3)
 
@@ -245,4 +241,3 @@ def show():
                 icone_pas_r = "❌"
 
             st.markdown(f"**→ Pas choisi = {pas_choisi_r:.1f} cm {icone_pas_r}**")
-
