@@ -15,6 +15,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
                                 rightMargin=2 * cm, leftMargin=2 * cm,
                                 topMargin=2 * cm, bottomMargin=2 * cm)
 
+        # Styles
         styles = getSampleStyleSheet()
         styles.add(ParagraphStyle(name='TitreSection', fontSize=14, leading=16, spaceAfter=12,
                                   textColor=colors.HexColor('#003366'), alignment=0, fontName="Helvetica-Bold"))
@@ -23,8 +24,10 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
 
         elements = []
 
+        # Titre
         elements.append(Paragraph("Rapport de dimensionnement – Poutre en béton armé", styles['TitreSection']))
 
+        # En-tête
         data_header = [
             ["Projet :", nom_projet, "Date :", date],
             ["Partie :", partie, "Indice :", indice]
@@ -33,6 +36,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         elements.append(table_header)
         elements.append(Spacer(1, 12))
 
+        # Caractéristiques
         elements.append(Paragraph("Caractéristiques de la poutre", styles['TitreSection']))
         data = [
             ["Classe de béton", beton],
@@ -50,6 +54,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         elements.append(table)
         elements.append(Spacer(1, 12))
 
+        # Sollicitations
         elements.append(Paragraph("Sollicitations", styles['TitreSection']))
         elements.append(Paragraph(f"Moment inférieur Minf = {M_inf:.1f} kN·m", styles['Texte']))
         if M_sup > 0:
@@ -59,12 +64,14 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
             elements.append(Paragraph(f"Effort tranchant réduit Vlim = {V_lim:.1f} kN", styles['Texte']))
         elements.append(Spacer(1, 12))
 
+        # Vérification hauteur utile
         elements.append(Paragraph("Vérification de la hauteur utile", styles['TitreSection']))
         alpha_b = 0.85
         mu = 12.96
         d_calcule = ((alpha_b * M_inf * 1e6) / (0.1708 * b * 10 * mu)) ** 0.5 / 10
         d_min_total = d_calcule + enrobage
 
+        # Formule LaTeX en image
         fig, ax = plt.subplots(figsize=(5, 0.8))
         ax.axis("off")
         latex_formula = (
@@ -80,6 +87,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         elements.append(Paragraph(f"hmin + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
         elements.append(Spacer(1, 12))
 
+        # Génération du PDF
         doc.build(elements)
         return nom_fichier
 
