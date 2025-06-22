@@ -215,12 +215,12 @@ def show():
                 
                
         # === Vérification de l'effort tranchant standard ===
-        
+        tau_1 = 0.016 * fck_cube / 1.05
+        tau_2 = 0.032 * fck_cube / 1.05
+        tau_4 = 0.064 * fck_cube / 1.05
+       
         if V > 0:
             tau = V * 1e3 / (0.75 * b * h * 100)
-            tau_1 = 0.016 * fck_cube / 1.05
-            tau_2 = 0.032 * fck_cube / 1.05
-            tau_4 = 0.064 * fck_cube / 1.05
         
             if tau <= tau_1:
                 besoin = "Pas besoin d’étriers"
