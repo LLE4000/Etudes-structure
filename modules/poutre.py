@@ -141,9 +141,9 @@ def show():
     
             # Affiche V_lim seulement si v_sup est coché
             if v_sup:
-            V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0, key="V_lim")
+                V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0, key="V_lim")
             else:
-            V_lim = 0.0
+                V_lim = 0.0
 
     
         # Enregistre dans session_state pour export PDF
@@ -155,6 +155,7 @@ def show():
         st.markdown("### Dimensionnement")
     
         st.markdown("**⚙️ Vérification de la hauteur**")
+        M_max = max(M_inf, M_sup)
         d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10
         st.markdown(f"**h,min** = {d_calcule:.1f} cm")
         hauteur_col, icone_col = st.columns([10, 1])
