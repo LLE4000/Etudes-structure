@@ -146,9 +146,9 @@ def show():
                 V_lim = 0.0
 
     
-        # Enregistre dans session_state pour export PDF
-        st.session_state["M_sup"] = M_sup
-        st.session_state["V_lim"] = V_lim
+        # Sécurise l'accès avant assignation
+        st.session_state["M_sup"] = M_sup if "M_sup" in locals() else 0.0
+        st.session_state["V_lim"] = V_lim if "V_lim" in locals() else 0.0
 
        # --- COLONNE DROITE ---
     with result_col_droite:
