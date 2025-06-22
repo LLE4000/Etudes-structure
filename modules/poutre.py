@@ -150,10 +150,10 @@ def show():
         st.session_state["M_sup"] = M_sup
         st.session_state["V_lim"] = V_lim
 
-    # --- COLONNE DROITE ---
+       # --- COLONNE DROITE ---
     with result_col_droite:
         st.markdown("### Dimensionnement")
-
+    
         st.markdown("**⚙️ Vérification de la hauteur**")
         d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10
         st.markdown(f"**h,min** = {d_calcule:.1f} cm")
@@ -162,14 +162,14 @@ def show():
             st.markdown(f"h,min + enrobage = {d_calcule + enrobage:.1f} cm ≤ h = {h} cm")
         with icone_col:
             st.markdown("✅" if d_calcule + enrobage <= h else "❌")
-
+    
         d = h - enrobage
         As_inf = (M_inf * 1e6) / (fyd * 0.9 * d * 10)
         As_min = 0.0013 * b * h * 1e2
         As_max = 0.04 * b * h * 1e2
-
+    
         st.markdown("**⚙️ Armatures inférieures**" if not m_sup else "**Armatures inférieures**")
-
+    
         as_col1, as_col2, as_col3 = st.columns(3)
         with as_col1:
             st.markdown(f"**Aₛ,inf = {As_inf:.0f} mm²**")
@@ -177,7 +177,7 @@ def show():
             st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
         with as_col3:
             st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
-
+    
         choix_col1, choix_col2, choix_col3 = st.columns([3, 3, 4])
         with choix_col1:
             n_barres = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_inf")
@@ -187,7 +187,7 @@ def show():
             As_choisi = n_barres * (math.pi * (diam_barres / 2) ** 2)
             ok1 = As_min <= As_choisi <= As_max and As_choisi >= As_inf
             st.markdown(f"Section choisie = **{As_choisi:.0f} mm²** {'✅' if ok1 else '❌'}")
-
+    
         if m_sup:
             st.markdown("**⚙️ Armatures supérieures**")
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10)
@@ -198,7 +198,7 @@ def show():
                 st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
             with sup_col3:
                 st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
-
+    
             choix_sup_col1, choix_sup_col2, choix_sup_col3 = st.columns([3, 3, 4])
             with choix_sup_col1:
                 n_sup = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_sup")
@@ -208,9 +208,11 @@ def show():
                 As_sup_choisi = n_sup * (math.pi * (d_sup / 2) ** 2)
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
                 st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²** {'✅' if ok2 else '❌'}")
-                
-                # === Vérification de l'effort tranchant standard ===
 
+                
+               
+        # === Vérification de l'effort tranchant standard ===
+        
         if V > 0:
             tau = V * 1e3 / (0.75 * b * h * 100)
             tau_1 = 0.016 * fck_cube / 1.05
@@ -313,3 +315,4 @@ def show():
                 icone_pas_r = "❌"
         
             st.markdown(f"**→ Pas choisi = {pas_choisi_r:.1f} cm {icone_pas_r}**")
+        
