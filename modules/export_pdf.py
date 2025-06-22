@@ -66,23 +66,23 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
 
         # Vérification hauteur utile
         elements.append(Paragraph("Vérification de la hauteur utile", styles['TitreSection']))
-        alpha_b = 0.85
         mu = 12.96
-        d_calcule = ((alpha_b * M_inf * 1e6) / (0.1708 * b * 10 * mu)) ** 0.5 / 10
+        d_calcule = ((M_inf * 1e6) / (0.1708 * b * 10 * mu)) ** 0.5 / 10
         d_min_total = d_calcule + enrobage
 
         # Formule LaTeX en image
-        fig, ax = plt.subplots(figsize=(5, 1.2))
+        # Formule LaTeX en image – corrigée, non déformée
+        f.ig, ax = plt.subplots(figsize=(5, 1.5))  # Taille plus équilibrée
         ax.axis("off")
         latex_formula = (
-            rf"$h_{{min}} = \sqrt{{\frac{{0.85 \cdot {M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$"
+        rf"$h_{{min}} = \sqrt{{\frac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$"
         )
-        ax.text(0.01, 0.5, latex_formula, ha="left", va="center", fontsize=10)
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=200, bbox_inches='tight', transparent=True)
-        plt.close(fig)
-        buf.seek(0)
-        elements.append(Image(buf, width=12 * cm, height=1.5 * cm))
+        ax.text(0.5, 0.5, latex_formula, ha="center", va="center", fontsize=14)
+buf = io.BytesIO()
+plt.savefig(buf, format='png', dpi=300, bbox_inches='tight', transparent=True)
+plt.close(fig)
+buf.seek(0)
+elements.append(Image(buf, width=12 * cm))  # On ne force plus la hauteur
 
         elements.append(Paragraph(f"hmin + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
         elements.append(Spacer(1, 12))
