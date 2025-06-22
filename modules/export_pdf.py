@@ -88,4 +88,6 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         return nom_fichier
 
     except Exception as err:
-        raise ValueError(f"Erreur dans la génération du PDF : {err}")
+        import traceback
+raise ValueError("Erreur dans la génération du PDF :\n" + traceback.format_exc())
+
