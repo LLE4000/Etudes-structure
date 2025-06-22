@@ -181,9 +181,9 @@ def show():
     
         choix_col1, choix_col2, choix_col3 = st.columns([3, 3, 4])
         with choix_col1:
-            n_barres = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_inf")
+            n_barres = st.selectbox("Nb barres", list(range(1, 11)), index=1, key="n_as_inf")
         with choix_col2:
-            diam_barres = st.selectbox("Ø (mm)", [6, 8, 10, 12, 16, 20, 25, 32, 40], key="ø_as_inf")
+            diam_barres = st.selectbox("Ø (mm)", [6, 8, 10, 12, 16, 20, 25, 32, 40], index=4, key="ø_as_inf")
         with choix_col3:
             As_choisi = n_barres * (math.pi * (diam_barres / 2) ** 2)
             ok1 = As_min <= As_choisi <= As_max and As_choisi >= As_inf
@@ -202,9 +202,9 @@ def show():
     
             choix_sup_col1, choix_sup_col2, choix_sup_col3 = st.columns([3, 3, 4])
             with choix_sup_col1:
-                n_sup = st.selectbox("Nb barres", list(range(1, 11)), key="n_as_sup")
+                n_sup = st.selectbox("Nb barres", list(range(1, 11)),index=1, key="n_as_sup")
             with choix_sup_col2:
-                d_sup = st.selectbox("Ø (mm)", [6, 8, 10, 12, 16, 20, 25, 32, 40], key="ø_as_sup")
+                d_sup = st.selectbox("Ø (mm)", [6, 8, 10, 12, 16, 20, 25, 32, 40],index=4, key="ø_as_sup")
             with choix_sup_col3:
                 As_sup_choisi = n_sup * (math.pi * (d_sup / 2) ** 2)
                 ok2 = As_min <= As_sup_choisi <= As_max and As_sup_choisi >= As_sup
