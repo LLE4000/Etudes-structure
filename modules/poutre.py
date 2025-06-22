@@ -201,7 +201,7 @@ def show():
             st.markdown(f"**τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin} {icone}**")
         
             st.markdown("⚙️ Détermination des étriers")
-            Ast_etrier_pre = st.session_state.get("n_etriers", 2) * math.pi * (st.session_state.get("ø_etrier", 8) / 2) ** 2
+            Ast_etrier_pre = st.session_state.get("n_etriers", 2) * math.pi * (st.session_state.get("ø_etrier", 16) / 2) ** 2
             pas_theorique_pre = Ast_etrier_pre * (int(fyk) / 1.5) * d * 10 / (10 * V * 1e3)
             st.markdown(f"**Pas théorique = {pas_theorique_pre:.1f} cm**")
         
@@ -213,7 +213,7 @@ def show():
             with col3:
                 pas_choisi = st.number_input("Pas choisi (cm)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier")
         
-            Ast_etrier = n_etriers * math.pi * (d_etrier * 10) ** 2
+            Ast_etrier = n_etriers * math.pi * (d_etrier / 2) ** 2
             pas_theorique = Ast_etrier * (int(fyk) / 1.5) * d * 10/ (10 * V * 1e3)
         
             if pas_choisi <= pas_theorique:
