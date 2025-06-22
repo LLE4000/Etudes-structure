@@ -126,7 +126,7 @@ def show():
     
         with moment_col:
             M_inf = st.number_input("Moment inférieur M (kNm)", 0.0, step=10.0, key="M_inf")
-            m_sup = st.checkbox("Ajouter un moment supérieur", key="m_sup")
+            m_sup = st.checkbox("Ajouter un moment supérieur", key="ajouter_moment_sup")
             if m_sup:
                 M_sup = st.number_input("Moment supérieur M_sup (kNm)", 0.0, step=10.0, key="M_sup")
             else:
@@ -137,7 +137,7 @@ def show():
     V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0, key="V")
     
     # Checkbox pour effort réduit
-    v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="v_sup_affichage")
+    v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="ajouter_effort_reduit")
     
     # Affiche V_lim seulement si v_sup est coché
     if v_sup:
