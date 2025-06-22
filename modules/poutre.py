@@ -120,19 +120,58 @@ def show():
         fyd = int(fyk) / 1.5
 
         st.markdown("### Sollicitations")
-        moment_col, effort_col = st.columns(2)
-        with moment_col:
-            M_inf = st.number_input("Moment inférieur M (kNm)", 0.0, step=10.0)
-            m_sup = st.checkbox("Ajouter un moment supérieur")
-            M_max = M_inf
-            if m_sup:
-                M_sup = st.number_input("Moment supérieur M_sup (kNm)", 0.0, step=10.0)
-                M_max = max(abs(M_inf), abs(M_sup))
-        with effort_col:
-            V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0)
-            v_sup = st.checkbox("Ajouter un effort tranchant réduit")
-            if v_sup:
-                V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0)
+moment_col, effort_col = st.columns(2)
+
+with moment_col:
+    # Moment inférieur
+    M_inf = st.number_input(
+        "Moment inférieur M (kNm)",
+        min_value=0.0,
+        step=10.0,
+        key="M_inf"
+    )
+
+    # Checkbox moment supérieur
+    m_sup = st.checkbox(
+        "Ajouter un moment supérieur",
+        key="m_sup"
+    )
+
+    # Moment supérieur (optionnel)
+    M_max = M_inf
+    if m_sup:
+        M_sup = st.number_input(
+            "Moment supérieur M_sup (kNm)",
+            min_value=0.0,
+            step=10.0,
+            key="M_sup"
+        )
+        M_max = max(abs(M_inf), abs(M_sup))
+
+with effort_col:
+    # Effort tranchant
+    V = st.number_input(
+        "Effort tranchant V (kN)",
+        min_value=0.0,
+        step=10.0,
+        key="V"
+    )
+
+    # Checkbox effort tranchant réduit
+    v_sup = st.checkbox(
+        "Ajouter un effort tranchant réduit",
+        key="v_sup"
+    )
+
+    # Effort tranchant réduit (optionnel)
+    if v_sup:
+        V_lim = st.number_input(
+            "Effort tranchant réduit V_limite (kN)",
+            min_value=0.0,
+            step=10.0,
+            key="V_lim"
+        )
+
 
     # --- COLONNE DROITE ---
     with result_col_droite:
