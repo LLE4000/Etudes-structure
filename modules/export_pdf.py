@@ -72,12 +72,12 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
 
         # Formule LaTeX en image
         # Formule LaTeX en image – corrigée, non déformée
-        fig, ax = plt.subplots(figsize=(5, 1.5))  # Taille plus équilibrée
+        fig, ax = plt.subplots(figsize=(6, 1.6))  # Taille plus équilibrée
         ax.axis("off")
         latex_formula = (
         rf"$h_{{min}} = \sqrt{{\frac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$"
         )
-        ax.text(0.5, 0.5, latex_formula, ha="center", va="center", fontsize=14)
+        ax.text(0.5, 0.5, latex_formula, ha="center", va="center", fontsize=11)
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=300, bbox_inches='tight', transparent=True)
         plt.close(fig)
