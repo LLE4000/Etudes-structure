@@ -72,17 +72,17 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
 
         # Formule LaTeX en image
         # Formule LaTeX en image – corrigée, non déformée
-        f.ig, ax = plt.subplots(figsize=(5, 1.5))  # Taille plus équilibrée
+        fig, ax = plt.subplots(figsize=(5, 1.5))  # Taille plus équilibrée
         ax.axis("off")
         latex_formula = (
         rf"$h_{{min}} = \sqrt{{\frac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$"
         )
         ax.text(0.5, 0.5, latex_formula, ha="center", va="center", fontsize=14)
-buf = io.BytesIO()
-plt.savefig(buf, format='png', dpi=300, bbox_inches='tight', transparent=True)
-plt.close(fig)
-buf.seek(0)
-elements.append(Image(buf, width=12 * cm))  # On ne force plus la hauteur
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=300, bbox_inches='tight', transparent=True)
+        plt.close(fig)
+        buf.seek(0)
+        elements.append(Image(buf, width=12 * cm))  # On ne force plus la hauteur
 
         elements.append(Paragraph(f"hmin + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
         elements.append(Spacer(1, 12))
