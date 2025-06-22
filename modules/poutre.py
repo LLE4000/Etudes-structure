@@ -145,16 +145,11 @@ def show():
             else:
                 V_lim = 0.0
 
-    
-        # Sécurise l'accès avant assignation
-            if m_sup:
-                st.session_state["M_sup"] = M_sup
-            elif "M_sup" in st.session_state:
+        # Supprime les clés de session si les options sont décochées
+            if not m_sup and "M_sup" in st.session_state:
                 del st.session_state["M_sup"]
 
-            if v_sup:
-                st.session_state["V_lim"] = V_lim
-            elif "V_lim" in st.session_state:
+            if not v_sup and "V_lim" in st.session_state:
                 del st.session_state["V_lim"]
 
        # --- COLONNE DROITE ---
