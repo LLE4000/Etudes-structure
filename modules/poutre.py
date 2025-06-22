@@ -133,16 +133,16 @@ def show():
                 M_sup = 0.0
     
         with effort_col:
-        # Toujours afficher V
-        V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0, key="V")
+            # Toujours afficher V
+            V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0, key="V")
     
-        # Checkbox pour effort réduit
-        v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="ajouter_effort_reduit")
+            # Checkbox pour effort réduit
+            v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="ajouter_effort_reduit")
     
-        # Affiche V_lim seulement si v_sup est coché
-        if v_sup:
+            # Affiche V_lim seulement si v_sup est coché
+            if v_sup:
             V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0, key="V_lim")
-        else:
+            else:
             V_lim = 0.0
 
     
