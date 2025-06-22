@@ -140,18 +140,10 @@ def show():
                 V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0, key="V_lim")
             else:
                 V_lim = 0.0
-
         # Enregistre les valeurs calculées dans session_state pour l'export PDF
         st.session_state["M_sup"] = M_sup
         st.session_state["V_lim"] = V_lim
 
-    # Effort tranchant
-    V = st.number_input(
-        "Effort tranchant V (kN)",
-        min_value=0.0,
-        step=10.0,
-        key="V"
-    )
 
     # Checkbox effort tranchant réduit
     v_sup = st.checkbox(
