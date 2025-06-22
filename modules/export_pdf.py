@@ -72,12 +72,12 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         d_min_total = d_calcule + enrobage
 
         # Formule LaTeX en image
-        fig, ax = plt.subplots(figsize=(5, 0.8))
+        fig, ax = plt.subplots(figsize=(5, 1.2))
         ax.axis("off")
         latex_formula = (
             rf"$h_{{min}} = \sqrt{{\frac{{0.85 \cdot {M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$"
         )
-        ax.text(0.01, 0.5, latex_formula, ha="left", va="center", fontsize=12)
+        ax.text(0.01, 0.5, latex_formula, ha="left", va="center", fontsize=10)
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=200, bbox_inches='tight', transparent=True)
         plt.close(fig)
