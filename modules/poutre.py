@@ -126,7 +126,7 @@ def show():
         As_min = 0.0013 * b * h * 1e2
         As_max = 0.04 * b * h * 1e2
 
-        st.markdown("**⚙️ Armatures inférieures**" if not m_sup else "**Armatures inférieures (avec M_sup)**")
+        st.markdown("**⚙️ Armatures inférieures**" if not m_sup else "**Armatures inférieures**")
 
         as_col1, as_col2, as_col3 = st.columns(3)
         with as_col1:
@@ -179,7 +179,7 @@ def show():
         
             if tau <= tau_1:
                 besoin = "Pas besoin d’étriers"
-                icone = "✅✅"
+                icone = "✅"
                 tau_lim_aff = tau_1
                 nom_lim = "τ_adm_I"
             elif tau <= tau_2:
@@ -213,8 +213,8 @@ def show():
             with col3:
                 pas_choisi = st.number_input("Pas choisi (cm)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier")
         
-            Ast_etrier = n_etriers * math.pi * (d_etrier / 2) ** 2
-            pas_theorique = Ast_etrier * (int(fyk) / 1.5) * d / (10 * V * 1e3)
+            Ast_etrier = n_etriers * math.pi * (d_etrier * 10) ** 2
+            pas_theorique = Ast_etrier * (int(fyk) / 1.5) * d * 10/ (10 * V * 1e3)
         
             if pas_choisi <= pas_theorique:
                 icone_pas = "✅"
@@ -237,7 +237,7 @@ def show():
         
                 if tau_r <= tau_1:
                     besoin_r = "Pas besoin d’étriers"
-                    icone_r = "✅✅"
+                    icone_r = "✅"
                     tau_lim_aff_r = tau_1
                     nom_lim_r = "τ_adm_I"
                 elif tau_r <= tau_2:
@@ -268,7 +268,7 @@ def show():
                     pas_choisi_r = st.number_input("Pas choisi (cm) (réduit)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier_r")
         
                 Ast_etrier_r = n_etriers_r * math.pi * (d_etrier_r / 2) ** 2
-                pas_theorique_r = Ast_etrier_r * (int(fyk) / 1.5) * d / (10 * V_lim * 1e3)
+                pas_theorique_r = Ast_etrier_r * (int(fyk) / 1.5) * d * 10 / (10 * V_lim * 1e3)
                 st.markdown(f"**Pas théorique (réduit) = {pas_theorique_r:.1f} cm**")
         
                 if pas_choisi_r <= pas_theorique_r:
