@@ -91,20 +91,20 @@ def show():
         st.markdown("### Informations sur le projet")
         st.text_input("", placeholder="Nom du projet", key="nom_projet")
         st.text_input("", placeholder="Partie", key="partie")
-
+    
         date_col, indice_col = st.columns(2)
         with date_col:
             st.text_input("", placeholder="Date (jj/mm/aaaa)", value=datetime.today().strftime("%d/%m/%Y"), key="date")
         with indice_col:
             st.text_input("", placeholder="Indice", value="0", key="indice")
-
+    
         st.markdown("### Caractéristiques de la poutre")
         beton_col, acier_col = st.columns(2)
         with beton_col:
             beton = st.selectbox("Classe de béton", list(beton_data.keys()), index=2)
         with acier_col:
             fyk = st.selectbox("Qualité d'acier [N/mm²]", ["400", "500"], index=1)
-
+    
         section_col1, section_col2, section_col3 = st.columns(3)
         with section_col1:
             b = st.number_input("Larg. [cm]", 5, 1000, 20, key="b")
@@ -112,27 +112,26 @@ def show():
             h = st.number_input("Haut. [cm]", 5, 1000, 35, key="h")
         with section_col3:
             enrobage = st.number_input("Enrob. (cm)", min_value=0.0, max_value=100.0, value=5.0, step=0.1, key="enrobage")
-
+    
+        # Calculs de constantes béton
         fck = beton_data[beton]["fck"]
         fck_cube = beton_data[beton]["fck_cube"]
         alpha_b = beton_data[beton]["alpha_b"]
         mu_val = beton_data[beton][f"mu_a{fyk}"]
         fyd = int(fyk) / 1.5
-
+    
         st.markdown("### Sollicitations")
-
+    
         moment_col, effort_col = st.columns(2)
-
+    
         with moment_col:
             M_inf = st.number_input("Moment inférieur M (kNm)", 0.0, step=10.0, key="M_inf")
             m_sup = st.checkbox("Ajouter un moment supérieur", key="m_sup")
-            M_max = M_inf
             if m_sup:
                 M_sup = st.number_input("Moment supérieur M_sup (kNm)", 0.0, step=10.0, key="M_sup")
-                M_max = max(abs(M_inf), abs(M_sup))
             else:
                 M_sup = 0.0
-
+    
         with effort_col:
             V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0, key="V")
             v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="v_sup")
@@ -140,26 +139,10 @@ def show():
                 V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0, key="V_lim")
             else:
                 V_lim = 0.0
-        # Enregistre les valeurs calculées dans session_state pour l'export PDF
+    
+        # Enregistre dans session_state pour export PDF
         st.session_state["M_sup"] = M_sup
         st.session_state["V_lim"] = V_lim
-
-
-    # Checkbox effort tranchant réduit
-    v_sup = st.checkbox(
-        "Ajouter un effort tranchant réduit",
-        key="v_sup"
-    )
-
-    # Effort tranchant réduit (optionnel)
-    if v_sup:
-        V_lim = st.number_input(
-            "Effort tranchant réduit V_limite (kN)",
-            min_value=0.0,
-            step=10.0,
-            key="V_lim"
-        )
-
 
     # --- COLONNE DROITE ---
     with result_col_droite:
