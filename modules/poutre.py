@@ -202,7 +202,7 @@ def show():
         
             st.markdown("⚙️ Détermination des étriers")
             Ast_etrier_pre = st.session_state.get("n_etriers", 2) * math.pi * (st.session_state.get("ø_etrier", 8) / 2) ** 2
-            pas_theorique_pre = Ast_etrier_pre * (int(fyk) / 1.5) * d / (10 * V * 1e3)
+            pas_theorique_pre = Ast_etrier_pre * (int(fyk) / 1.5) * d * 10 / (10 * V * 1e3)
             st.markdown(f"**Pas théorique = {pas_theorique_pre:.1f} cm**")
         
             col1, col2, col3 = st.columns(3)
