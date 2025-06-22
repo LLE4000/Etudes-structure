@@ -120,35 +120,31 @@ def show():
         fyd = int(fyk) / 1.5
 
         st.markdown("### Sollicitations")
-moment_col, effort_col = st.columns(2)
 
-with moment_col:
-    # Moment inférieur
-    M_inf = st.number_input(
-        "Moment inférieur M (kNm)",
-        min_value=0.0,
-        step=10.0,
-        key="M_inf"
-    )
+        moment_col, effort_col = st.columns(2)
 
-    # Checkbox moment supérieur
-    m_sup = st.checkbox(
-        "Ajouter un moment supérieur",
-        key="m_sup"
-    )
+        with moment_col:
+            M_inf = st.number_input("Moment inférieur M (kNm)", 0.0, step=10.0, key="M_inf")
+            m_sup = st.checkbox("Ajouter un moment supérieur", key="m_sup")
+            M_max = M_inf
+            if m_sup:
+                M_sup = st.number_input("Moment supérieur M_sup (kNm)", 0.0, step=10.0, key="M_sup")
+                M_max = max(abs(M_inf), abs(M_sup))
+            else:
+                M_sup = 0.0
 
-    # Moment supérieur (optionnel)
-    M_max = M_inf
-    if m_sup:
-        M_sup = st.number_input(
-            "Moment supérieur M_sup (kNm)",
-            min_value=0.0,
-            step=10.0,
-            key="M_sup"
-        )
-        M_max = max(abs(M_inf), abs(M_sup))
+        with effort_col:
+            V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0, key="V")
+            v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="v_sup")
+            if v_sup:
+                V_lim = st.number_input("Effort tranchant réduit V_limite (kN)", 0.0, step=10.0, key="V_lim")
+            else:
+                V_lim = 0.0
 
-with effort_col:
+        # Enregistre les valeurs calculées dans session_state pour l'export PDF
+        st.session_state["M_sup"] = M_sup
+        st.session_state["V_lim"] = V_lim
+
     # Effort tranchant
     V = st.number_input(
         "Effort tranchant V (kN)",
