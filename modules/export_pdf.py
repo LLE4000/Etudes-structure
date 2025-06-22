@@ -75,7 +75,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         fig, ax = plt.subplots(figsize=(5, 0.8))
         ax.axis("off")
         latex_formula = (
-            rf"$h_{{min}} = \sqrt{{\frac{{0.85 \cdot {M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$"
+            rf"$h_{{min}} = \sqrt{{rac{{0.85 \cdot {M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$"
         )
         ax.text(0.5, 0.5, latex_formula, ha="center", va="center", fontsize=12)
         buf = io.BytesIO()
@@ -86,9 +86,6 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
 
         elements.append(Paragraph(f"hmin + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
         elements.append(Spacer(1, 12))
-
-        # Note finale
-        elements.append(Paragraph("Note : Les vérifications détaillées sont disponibles dans l'application Streamlit.", styles['Note']))
 
         # Génération du PDF
         doc.build(elements)
