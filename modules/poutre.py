@@ -147,8 +147,15 @@ def show():
 
     
         # Sécurise l'accès avant assignation
-        st.session_state["M_sup"] = M_sup if "M_sup" in locals() else 0.0
-        st.session_state["V_lim"] = V_lim if "V_lim" in locals() else 0.0
+            if m_sup:
+                st.session_state["M_sup"] = M_sup
+            elif "M_sup" in st.session_state:
+                del st.session_state["M_sup"]
+
+            if v_sup:
+                st.session_state["V_lim"] = V_lim
+            elif "V_lim" in st.session_state:
+                del st.session_state["V_lim"]
 
        # --- COLONNE DROITE ---
     with result_col_droite:
