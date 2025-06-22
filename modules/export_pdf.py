@@ -5,7 +5,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm
 import matplotlib.pyplot as plt
 import io
-import traceback  # ← place ici l'import
+import traceback
 
 def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enrobage, M_inf, M_sup, V, V_lim):
     try:
@@ -69,10 +69,9 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         d_calcule = ((alpha_b * M_inf * 1e6) / (0.1708 * b * 10 * mu)) ** 0.5 / 10
         d_min_total = d_calcule + enrobage
 
-        # Générer image de formule
         fig, ax = plt.subplots(figsize=(5, 0.8))
         ax.axis("off")
-        ax.text(0.5, 0.5, rf"$h_{{min}} = \sqrt{{\frac{{0.85 \cdot {M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$", ha="center", va="center", fontsize=12)
+        ax.text(0.5, 0.5, rf"$h_{{min}} = \sqrt{{rac{{0.85 \cdot {M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$", ha="center", va="center", fontsize=12)
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=200, bbox_inches='tight', transparent=True)
         plt.close(fig)
