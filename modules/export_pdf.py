@@ -1,8 +1,10 @@
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
+import matplotlib.pyplot as plt
+import io
 
 def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enrobage, M_inf, M_sup, V, V_lim):
     try:
@@ -22,9 +24,13 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         # Titre
         elements.append(Paragraph("Rapport de dimensionnement – Poutre en béton armé", styles['TitreSection']))
 
-        # Infos projet
-        infos = f"Projet : {nom_projet}    Partie : {partie}    Date : {date}    Indice : {indice}"
-        elements.append(Paragraph(infos, styles['Texte']))
+        # En-tête sous forme de tableau
+        data_header = [
+            ["Projet :", nom_projet, "Date :", date],
+            ["Partie :", partie, "Indice :", indice]
+        ]
+        table_header = Table(data_header, colWidths=[3*cm, 6*cm, 2*cm, 4*cm])
+        elements.append(table_header)
         elements.append(Spacer(1, 12))
 
         # Caractéristiques de la poutre
@@ -32,7 +38,8 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         data = [
             ["Classe de béton", beton],
             ["Acier (fyk)", f"{fyk} N/mm²"],
-            ["Dimensions (b x h)", f"{b} cm x {h} cm"],
+            ["Largeur (b)", f"{b} cm"],
+            ["Hauteur (h)", f"{h} cm"],
             ["Enrobage", f"{enrobage} cm"]
         ]
         table = Table(data, hAlign='LEFT', colWidths=[6 * cm, 6 * cm])
@@ -44,57 +51,35 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         elements.append(table)
         elements.append(Spacer(1, 12))
 
-        # Moments
-        elements.append(Paragraph("Moments fléchissants", styles['TitreSection']))
-        moments_text = f"Moment inférieur Minf = {M_inf:.1f} kN·m"
+        # Sollicitations
+        elements.append(Paragraph("Sollicitations", styles['TitreSection']))
+        elements.append(Paragraph(f"Moment inférieur Minf = {M_inf:.1f} kN·m", styles['Texte']))
         if M_sup > 0:
-            moments_text += f" ; Moment supérieur Msup = {M_sup:.1f} kN·m"
-        elements.append(Paragraph(moments_text, styles['Texte']))
+            elements.append(Paragraph(f"Moment supérieur Msup = {M_sup:.1f} kN·m", styles['Texte']))
+        elements.append(Paragraph(f"Effort tranchant V = {V:.1f} kN", styles['Texte']))
+        if V_lim > 0:
+            elements.append(Paragraph(f"Effort tranchant réduit Vlim = {V_lim:.1f} kN", styles['Texte']))
         elements.append(Spacer(1, 12))
 
-        # Vérification hauteur utile
+        # Vérification hauteur utile (avec image LaTeX)
         elements.append(Paragraph("Vérification de la hauteur utile", styles['TitreSection']))
         alpha_b = 0.85
         mu = 12.96
         d_calcule = ((alpha_b * M_inf * 1e6) / (0.1708 * b * 10 * mu)) ** 0.5 / 10
         d_min_total = d_calcule + enrobage
-        formule_d = f"hmin = √[(0.85 × {M_inf:.1f} × 10⁶) / (0.1708 × {b} × 10 × 12.96)] = {d_calcule:.1f} cm"
-        elements.append(Paragraph(formule_d, styles['Formule']))
+
+        # Générer image de formule
+        fig, ax = plt.subplots(figsize=(5, 0.8))
+        ax.axis("off")
+        ax.text(0.5, 0.5, rf"$h_{{min}} = \sqrt{{rac{{0.85 \cdot {M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$", ha="center", va="center", fontsize=12)
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=200, bbox_inches='tight', transparent=True)
+        plt.close(fig)
+        buf.seek(0)
+        elements.append(Image(buf, width=12*cm, height=1.5*cm))
+
         elements.append(Paragraph(f"hmin + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
         elements.append(Spacer(1, 12))
-
-        # Efforts tranchants
-        elements.append(Paragraph("Efforts tranchants", styles['TitreSection']))
-        efforts_text = f"Effort tranchant V = {V:.1f} kN"
-        if V_lim > 0:
-            efforts_text += f" ; Effort tranchant réduit Vlim = {V_lim:.1f} kN"
-        elements.append(Paragraph(efforts_text, styles['Texte']))
-        elements.append(Spacer(1, 6))
-
-        # Vérification cisaillement
-        tau = (V * 1e3) / (0.75 * b * h * 100) if V > 0 else 0
-        tau_lim = 112  # Valeur par défaut, à adapter
-        tau_formula = f"τ = {V:.1f} × 10³ / (0.75 × {b} × {h} × 100) = {tau:.1f} N/cm²"
-        elements.append(Paragraph(tau_formula, styles['Formule']))
-        elements.append(Paragraph(f"τ = {tau:.1f} N/cm² ≤ {tau_lim} N/cm² → OK", styles['Texte']))
-        elements.append(Spacer(1, 12))
-
-        # Détermination des étriers
-        elements.append(Paragraph("Détermination des étriers", styles['TitreSection']))
-        try:
-            Ast = 2 * (3.14 * (8 / 2) ** 2)  # Exemple 2Ø8
-            fyd = int(fyk) / 1.5
-            d = h - enrobage
-            pas_theo = Ast * fyd * d / (10 * V * 1e3) if V > 0 else 0
-            etrier_text1 = f"Ast = {Ast:.0f} mm² ; fyd = {fyd:.1f} N/mm² ; d = {d:.1f} cm"
-            etrier_text2 = f"Pas théorique = Ast × fyd × d / (10 × V × 10³) = {pas_theo:.1f} cm"
-        except Exception as e:
-            etrier_text1 = "Erreur lors du calcul des étriers"
-            etrier_text2 = str(e)
-
-        elements.append(Paragraph(etrier_text1, styles['Texte']))
-        elements.append(Paragraph(etrier_text2, styles['Formule']))
-        elements.append(Spacer(1, 18))
 
         # Note finale
         elements.append(Paragraph("Note : Les vérifications détaillées sont disponibles dans l'application Streamlit.", styles['Note']))
