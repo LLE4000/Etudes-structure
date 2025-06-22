@@ -12,45 +12,36 @@ def show():
 
     st.markdown("## Poutre en béton armé")
 
-    # 🔘 Ligne des 5 boutons : Accueil – Réinitialiser – Enregistrer – Ouvrir – PDF
-    btn1, btn2, btn3, btn4, btn5 = st.columns([1, 1, 2, 2, 2])
-
-    # 🏠 Accueil
-    with btn1:
-        if st.button("🏠 Accueil", key="retour_accueil_poutre"):
+    # --- BARRE DES 5 BOUTONS PRINCIPAUX ---
+    btn_accueil, btn_reset, btn_save, btn_load, btn_pdf = st.columns(5)
+    
+    with btn_accueil:
+        if st.button("🏠 Accueil", use_container_width=True):
             st.session_state.retour_accueil_demande = True
             st.experimental_rerun()
-
-    # 🔄 Réinitialiser
-    with btn2:
-        if st.button("🔄 Réinitialiser", key="reset_poutre"):
+    
+    with btn_reset:
+        if st.button("🔄 Réinitialiser", use_container_width=True):
             st.rerun()
-
-    # 💾 Enregistrer
-    with btn3:
-        nom_fichier_json = st.text_input("Nom du fichier à enregistrer (sans extension)", 
-                                         value=st.session_state.get("nom_projet", "poutre_donnees"), 
-                                         key="nom_fichier_json")
+    
+    with btn_save:
         dict_a_sauver = {k: v for k, v in st.session_state.items() if not k.startswith("_")}
         contenu_json = json.dumps(dict_a_sauver, indent=2)
         b64 = base64.b64encode(contenu_json.encode()).decode()
-        nom_final = nom_fichier_json.strip() or "poutre_donnees"
-        href = f'<a href="data:file/json;base64,{b64}" download="{nom_final}.json">💾 Enregistrer les données</a>'
+        href = f'<a href="data:file/json;base64,{b64}" download="poutre_donnees.json"><button style="width:100%">💾 Enregistrer</button></a>'
         st.markdown(href, unsafe_allow_html=True)
-
-    # 📂 Ouvrir
-    with btn4:
-        uploaded_file = st.file_uploader("📂 Charger un fichier JSON", type=["json"], label_visibility="collapsed")
-        if uploaded_file is not None:
+    
+    with btn_load:
+        uploaded_file = st.file_uploader("📂 Ouvrir", type="json", label_visibility="collapsed")
+        if uploaded_file:
             donnees = json.load(uploaded_file)
             for k, v in donnees.items():
                 st.session_state[k] = v
-            st.success("✅ Données chargées avec succès.")
+            st.success("✅ Données chargées")
             st.rerun()
-
-    # 📄 Générer le rapport PDF
-    with btn5:
-        if st.button("📄 Générer le rapport PDF", key="export_pdf"):
+    
+    with btn_pdf:
+        if st.button("📄 Générer PDF", use_container_width=True):
             from modules.export_pdf import generer_rapport_pdf
             fichier_pdf = generer_rapport_pdf(
                 nom_projet=st.session_state.get("nom_projet", ""),
@@ -74,7 +65,7 @@ def show():
                     file_name=fichier_pdf,
                     mime="application/pdf"
                 )
-            st.success("✅ Rapport généré avec succès.")
+            st.success("✅ Rapport généré")
 
 
     # Données béton
