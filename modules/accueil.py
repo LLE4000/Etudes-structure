@@ -10,27 +10,19 @@ def show():
         cols = st.columns(4)
         for i, tool in enumerate(tools):
             with cols[i]:
-                # 🧠 On utilise st.button pour capter le clic (pas le <a> !)
-                if st.button(
-                    label="",
-                    key=f"{tool['page']}_btn",
-                    help=tool["label"]
-                ):
-                    st.session_state.page = tool["page"]
-                    st.rerun()
-
-                # Affichage de l’image et du texte comme avant
                 st.markdown(
                     f"""
-                    <div style="text-align: center; margin-top: -65px;">
-                        <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px;" />
+                    <div style="text-align: center;">
+                        <a href="/?page={tool['page']}" target="_self">
+                            <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px;" />
+                        </a>
                         <div style="margin-top: 8px;">{tool['label']}</div>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
 
-    # Béton : dimensionnement et outils
+    # 🧱 Outils béton
     beton_tools = [
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
         {"image": "Logo_dalle.png", "label": "Dalle", "page": "Dalle"},
