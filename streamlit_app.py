@@ -11,45 +11,34 @@ from modules import (
     tableau_profiles
 )
 
-# Initialisation de la page d'accueil
-if "page" not in st.session_state:
-    st.session_state.page = "Accueil"
-
-# 📡 Réception du message JS pour mise à jour de session_state
-import streamlit.components.v1 as components
-components.html("""
-<script>
-    window.addEventListener("message", (event) => {
-        if (event.data.type === "streamlit:setComponentValue") {
-            window.parent.postMessage({ type: "streamlit:setSessionState", page: event.data.value }, "*");
-        }
-    });
-</script>
-""", height=0)
-
-# Configuration de la page Streamlit
+# Configuration
 st.set_page_config(
     page_title="Études Structure",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Affichage dynamique des modules
-if st.session_state.page == "Accueil":
+# Lecture des paramètres URL
+params = st.experimental_get_query_params()
+page = params.get("page", ["Accueil"])[0]
+st.session_state.page = page
+
+# Navigation entre modules
+if page == "Accueil":
     accueil.show()
-elif st.session_state.page == "Poutre":
+elif page == "Poutre":
     poutre.show()
-elif st.session_state.page == "Dalle":
+elif page == "Dalle":
     dalle.show()
-elif st.session_state.page == "Profilé métallique":
+elif page == "Profilé métallique":
     profile_metal.show()
-elif st.session_state.page == "Tableau armatures":
+elif page == "Tableau armatures":
     tableau_armatures.show()
-elif st.session_state.page == "Recouvrement":
+elif page == "Recouvrement":
     recouvrement.show()
-elif st.session_state.page == "Choix profilé":
+elif page == "Choix profilé":
     choix_profile.show()
-elif st.session_state.page == "Flambement":
+elif page == "Flambement":
     flambement.show()
-elif st.session_state.page == "Tableau profilés":
+elif page == "Tableau profilés":
     tableau_profiles.show()
