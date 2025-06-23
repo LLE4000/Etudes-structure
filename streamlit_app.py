@@ -11,11 +11,11 @@ from modules import (
     tableau_profiles
 )
 
-# Configuration
+# Initialisation de la page d'accueil
 if "page" not in st.session_state:
     st.session_state.page = "Accueil"
 
-# Réception du message de clic (depuis le HTML)
+# 📡 Réception du message JS pour mise à jour de session_state
 import streamlit.components.v1 as components
 components.html("""
 <script>
@@ -27,17 +27,14 @@ components.html("""
 </script>
 """, height=0)
 
+# Configuration de la page Streamlit
 st.set_page_config(
     page_title="Études Structure",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Page d'accueil par défaut
-if "page" not in st.session_state:
-    st.session_state.page = "Accueil"
-
-# Affichage dynamique
+# Affichage dynamique des modules
 if st.session_state.page == "Accueil":
     accueil.show()
 elif st.session_state.page == "Poutre":
@@ -56,4 +53,3 @@ elif st.session_state.page == "Flambement":
     flambement.show()
 elif st.session_state.page == "Tableau profilés":
     tableau_profiles.show()
-
