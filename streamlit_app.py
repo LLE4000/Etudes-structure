@@ -12,6 +12,21 @@ from modules import (
 )
 
 # Configuration
+if "page" not in st.session_state:
+    st.session_state.page = "Accueil"
+
+# Réception du message de clic (depuis le HTML)
+import streamlit.components.v1 as components
+components.html("""
+<script>
+    window.addEventListener("message", (event) => {
+        if (event.data.type === "streamlit:setComponentValue") {
+            window.parent.postMessage({ type: "streamlit:setSessionState", page: event.data.value }, "*");
+        }
+    });
+</script>
+""", height=0)
+
 st.set_page_config(
     page_title="Études Structure",
     layout="wide",
