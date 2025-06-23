@@ -11,34 +11,29 @@ from modules import (
     tableau_profiles
 )
 
-# Configuration
+# 🔁 Lecture du paramètre dans l'URL
+page = st.query_params.get("page", ["Accueil"])[0]
+st.session_state.page = page
+
+# 🖼️ Configuration de la page
 st.set_page_config(
     page_title="Études Structure",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Lecture des paramètres URL
-params = st.experimental_get_query_params()
-page = params.get("page", ["Accueil"])[0]
-st.session_state.page = page
+# 🧠 Dictionnaire des pages
+pages = {
+    "Accueil": accueil,
+    "Poutre": poutre,
+    "Dalle": dalle,
+    "Profilé métallique": profile_metal,
+    "Tableau armatures": tableau_armatures,
+    "Recouvrement": recouvrement,
+    "Choix profilé": choix_profile,
+    "Flambement": flambement,
+    "Tableau profilés": tableau_profiles
+}
 
-# Navigation entre modules
-if page == "Accueil":
-    accueil.show()
-elif page == "Poutre":
-    poutre.show()
-elif page == "Dalle":
-    dalle.show()
-elif page == "Profilé métallique":
-    profile_metal.show()
-elif page == "Tableau armatures":
-    tableau_armatures.show()
-elif page == "Recouvrement":
-    recouvrement.show()
-elif page == "Choix profilé":
-    choix_profile.show()
-elif page == "Flambement":
-    flambement.show()
-elif page == "Tableau profilés":
-    tableau_profiles.show()
+# ▶️ Affichage dynamique
+pages.get(st.session_state.page, accueil).show()
