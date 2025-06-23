@@ -1,9 +1,9 @@
 import streamlit as st
+import os
 
 def show():
     st.markdown("<h1 style='text-align: center;'>Études Structure</h1>", unsafe_allow_html=True)
 
-    # 🔧 Chemin vers le dossier des images
     image_dir = "assets"
 
     # Section Béton
@@ -18,16 +18,14 @@ def show():
     cols = st.columns(4)
     for i, tool in enumerate(beton_tools):
         with cols[i]:
-            image_url = f"{image_dir}/{tool['image']}"
-            st.markdown(
-                f"""
-                <a href="?page={tool['page']}">
-                    <img src="{image_url}" style="width: 80px; height: 80px; display: block; margin: auto;" />
-                </a>
-                <p style="text-align: center;">{tool["label"]}</p>
-                """,
-                unsafe_allow_html=True
-            )
+            image_path = os.path.join(image_dir, tool["image"])
+            if os.path.exists(image_path):
+                st.image(image_path, width=80)
+            else:
+                st.warning(f"Image manquante : {tool['image']}")
+            if st.button(tool["label"], key=f"btn_{tool['label']}"):
+                st.session_state.page = tool["page"]
+                st.experimental_rerun()
 
     st.markdown("---")
 
@@ -43,13 +41,11 @@ def show():
     cols = st.columns(4)
     for i, tool in enumerate(acier_tools):
         with cols[i]:
-            image_url = f"{image_dir}/{tool['image']}"
-            st.markdown(
-                f"""
-                <a href="?page={tool['page']}">
-                    <img src="{image_url}" style="width: 80px; height: 80px; display: block; margin: auto;" />
-                </a>
-                <p style="text-align: center;">{tool["label"]}</p>
-                """,
-                unsafe_allow_html=True
-            )
+            image_path = os.path.join(image_dir, tool["image"])
+            if os.path.exists(image_path):
+                st.image(image_path, width=80)
+            else:
+                st.warning(f"Image manquante : {tool['image']}")
+            if st.button(tool["label"], key=f"btn_{tool['label']}"):
+                st.session_state.page = tool["page"]
+                st.experimental_rerun()
