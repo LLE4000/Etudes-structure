@@ -11,21 +11,13 @@ def show():
 
         for i, tool in enumerate(tools):
             with cols[i]:
-                # Image cliquable en tant que bouton
-                if st.button(
-                    label="",
-                    key=f"btn_{tool['page']}",
-                    help=tool["label"]
-                ):
-                    st.session_state.page = tool["page"]
-                    st.experimental_rerun()
-
-                # Affichage HTML stylisé
                 st.markdown(
                     f"""
                     <div style="text-align: center;">
-                        <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px; margin-bottom: 5px;" />
-                        <div>{tool['label']}</div>
+                        <a href="/?page={tool['page']}" target="_self" style="text-decoration: none;">
+                            <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px; margin-bottom: 8px;" />
+                            <div style="font-size: 16px; color: black;">{tool['label']}</div>
+                        </a>
                     </div>
                     """,
                     unsafe_allow_html=True
