@@ -101,7 +101,46 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         elements.append(Paragraph(f"h_min + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
         elements.append(Spacer(1, 12))
 
-        # Prochaine étape : armatures et efforts tranchants
+        # --- Armatures inférieures ---
+        elements.append(Paragraph("Armatures inférieures", styles['TitreSection']))
+        As_inf = (M_inf * 1e6) / (fyd * 0.9 * d * 10)
+        As_min = 0.0013 * b * h * 100  # en mm²
+        As_max = 0.04 * b * h * 100
+        elements.append(Paragraph(f"d = h - enrobage = {d:.1f} cm", styles['Texte']))
+        elements.append(Paragraph(f"fyd = fyk / 1.15 = {fyd:.1f} N/mm²", styles['Texte']))
+        elements.append(Paragraph(f"As_inf = {As_inf:.1f} mm²", styles['Texte']))
+        elements.append(Paragraph(f"As_min = {As_min:.1f} mm², As_max = {As_max:.1f} mm²", styles['Texte']))
+        elements.append(Spacer(1, 12))
+
+        # --- Armatures supérieures ---
+        if M_sup > 0:
+            elements.append(Paragraph("Armatures supérieures", styles['TitreSection']))
+            As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10)
+            elements.append(Paragraph(f"As_sup = {As_sup:.1f} mm²", styles['Texte']))
+            elements.append(Spacer(1, 12))
+
+        # --- Vérification effort tranchant ---
+        elements.append(Paragraph("Vérification de l'effort tranchant", styles['TitreSection']))
+        tau = (V * 1e3) / (0.75 * b * h * 100)
+        tau_adm = 0.6  # valeur exemple, à ajuster selon le béton
+        elements.append(Paragraph(f"τ = {tau:.2f} N/mm²", styles['Texte']))
+        elements.append(Paragraph(f"τ_adm = {tau_adm:.2f} N/mm²", styles['Texte']))
+        if tau <= tau_adm:
+            elements.append(Paragraph("✔️ τ ≤ τ_adm → pas d’étriers nécessaires", styles['Texte']))
+        else:
+            elements.append(Paragraph("❌ τ > τ_adm → étriers nécessaires", styles['Texte']))
+        elements.append(Spacer(1, 12))
+
+        # --- Effort tranchant réduit ---
+        if V_lim > 0:
+            elements.append(Paragraph("Vérification de l'effort tranchant réduit", styles['TitreSection']))
+            tau_r = (V_lim * 1e3) / (0.75 * b * h * 100)
+            elements.append(Paragraph(f"τ_réduit = {tau_r:.2f} N/mm²", styles['Texte']))
+            if tau_r <= tau_adm:
+                elements.append(Paragraph("✔️ τ_réduit ≤ τ_adm → pas d’étriers nécessaires", styles['Texte']))
+            else:
+                elements.append(Paragraph("❌ τ_réduit > τ_adm → étriers nécessaires", styles['Texte']))
+            elements.append(Spacer(1, 12))
 
         doc.build(elements)
         return nom_fichier
