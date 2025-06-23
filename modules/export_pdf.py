@@ -28,6 +28,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         V = float(V)
         V_lim = float(V_lim)
 
+        # Constantes et calculs
         fyd = fyk / 1.15
         mu = 12.96
         d = h - enrobage
@@ -45,6 +46,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
 
         elements = []
 
+        # --- En-tête ---
         elements.append(Paragraph("Rapport de dimensionnement – Poutre en béton armé", styles['TitreSection']))
 
         data_header = [
@@ -55,6 +57,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         elements.append(table_header)
         elements.append(Spacer(1, 12))
 
+        # --- Caractéristiques ---
         elements.append(Paragraph("Caractéristiques de la poutre", styles['TitreSection']))
         data = [
             ["Classe de béton", beton],
@@ -90,16 +93,16 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         fig, ax = plt.subplots(figsize=(1.97, 0.6))
         ax.axis("off")
         latex_formula = (
-            rf"$\sqrt{{rac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b:.0f} \cdot 10 \cdot {mu:.2f}}}}}$"
+            rf"$\sqrt{{\frac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b:.0f} \cdot 10 \cdot {mu:.2f}}}}}$"
         )
         ax.text(0.5, 0.5, latex_formula, ha="center", va="center", fontsize=11)
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=300, bbox_inches='tight', transparent=True)
         plt.close(fig)
         buf.seek(0)
-        elements.append(Paragraph(f"h_min =", styles['Texte']))
+        elements.append(Paragraph("h<sub>min</sub> =", styles['Texte']))
         elements.append(Image(buf, width=5 * cm))
-        elements.append(Paragraph(f"h_min + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
+        elements.append(Paragraph(f"h<sub>min</sub> + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
         elements.append(PageBreak())
 
         # --- Armatures inférieures ---
@@ -108,12 +111,11 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         As_min = 0.0013 * b * h * 100
         As_max = 0.04 * b * h * 100
         elements.append(Paragraph(f"d = h - enrobage = {d:.1f} cm", styles['Texte']))
-        elements.append(Paragraph(f"fyd = fyk / 1.15 = {fyd:.1f} N/mm²", styles['Texte']))
+        elements.append(Paragraph(f"f<sub>yd</sub> = f<sub>yk</sub> / 1.15 = {fyd:.1f} N/mm²", styles['Texte']))
 
-        # Image formule As
         fig2, ax2 = plt.subplots(figsize=(1.97, 0.6))
         ax2.axis("off")
-        latex_as = rf"$A_s = rac{{M}}{{f_{{yd}} \cdot 0.9 \cdot d}}$"
+        latex_as = rf"$A_s = \frac{{M}}{{f_{{yd}} \cdot 0.9 \cdot d}}$"
         ax2.text(0.5, 0.5, latex_as, ha="center", va="center", fontsize=11)
         buf2 = io.BytesIO()
         plt.savefig(buf2, format='png', dpi=300, bbox_inches='tight', transparent=True)
@@ -121,15 +123,15 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         buf2.seek(0)
         elements.append(Image(buf2, width=5 * cm))
 
-        elements.append(Paragraph(f"As_inf = {As_inf:.1f} mm²", styles['Texte']))
-        elements.append(Paragraph(f"As_min = {As_min:.1f} mm², As_max = {As_max:.1f} mm²", styles['Texte']))
+        elements.append(Paragraph(f"As<sub>inf</sub> = {As_inf:.1f} mm²", styles['Texte']))
+        elements.append(Paragraph(f"As<sub>min</sub> = {As_min:.1f} mm², As<sub>max</sub> = {As_max:.1f} mm²", styles['Texte']))
         elements.append(Spacer(1, 12))
 
         # --- Armatures supérieures ---
         if M_sup > 0:
             elements.append(Paragraph("Armatures supérieures", styles['TitreSection']))
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10)
-            elements.append(Paragraph(f"As_sup = {As_sup:.1f} mm²", styles['Texte']))
+            elements.append(Paragraph(f"As<sub>sup</sub> = {As_sup:.1f} mm²", styles['Texte']))
             elements.append(Spacer(1, 12))
 
         # --- Vérification effort tranchant ---
@@ -137,23 +139,22 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         tau = (V * 1e3) / (0.75 * b * h * 100)
         tau_adm = 0.6
         elements.append(Paragraph(f"τ = {tau:.2f} N/mm²", styles['Texte']))
-        elements.append(Paragraph(f"τ_adm = {tau_adm:.2f} N/mm²", styles['Texte']))
-        elements.append(Paragraph("✔️ τ ≤ τ_adm → pas d’étriers nécessaires" if tau <= tau_adm
-                                  else "❌ τ > τ_adm → étriers nécessaires", styles['Texte']))
+        elements.append(Paragraph(f"τ<sub>adm</sub> = {tau_adm:.2f} N/mm²", styles['Texte']))
+        elements.append(Paragraph("✔️ τ ≤ τ<sub>adm</sub> → pas d’étriers nécessaires" if tau <= tau_adm
+                                  else "❌ τ > τ<sub>adm</sub> → étriers nécessaires", styles['Texte']))
         elements.append(Spacer(1, 12))
 
         # --- Effort tranchant réduit ---
         if V_lim > 0:
             elements.append(Paragraph("Vérification de l'effort tranchant réduit", styles['TitreSection']))
             tau_r = (V_lim * 1e3) / (0.75 * b * h * 100)
-            elements.append(Paragraph(f"τ_réduit = {tau_r:.2f} N/mm²", styles['Texte']))
-            elements.append(Paragraph("✔️ τ_réduit ≤ τ_adm → pas d’étriers nécessaires" if tau_r <= tau_adm
-                                      else "❌ τ_réduit > τ_adm → étriers nécessaires", styles['Texte']))
+            elements.append(Paragraph(f"τ<sub>réduit</sub> = {tau_r:.2f} N/mm²", styles['Texte']))
+            elements.append(Paragraph("✔️ τ<sub>réduit</sub> ≤ τ<sub>adm</sub> → pas d’étriers nécessaires" if tau_r <= tau_adm
+                                      else "❌ τ<sub>réduit</sub> > τ<sub>adm</sub> → étriers nécessaires", styles['Texte']))
             elements.append(Spacer(1, 12))
 
         doc.build(elements)
         return nom_fichier
 
     except Exception as err:
-        raise ValueError("Erreur dans la génération du PDF :
-" + traceback.format_exc())
+        raise ValueError("Erreur dans la génération du PDF :\n" + traceback.format_exc())
