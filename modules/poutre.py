@@ -102,8 +102,10 @@ def show():
         beton_col, acier_col = st.columns(2)
         with beton_col:
             beton = st.selectbox("Classe de béton", list(beton_data.keys()), index=2)
+            st.session_state["beton"] = beton  # ✅ Synchronisation
         with acier_col:
             fyk = st.selectbox("Qualité d'acier [N/mm²]", ["400", "500"], index=1)
+            st.session_state["fyk"] = fyk  # ✅ Synchronisation
     
         section_col1, section_col2, section_col3 = st.columns(3)
         with section_col1:
