@@ -1,6 +1,37 @@
 import streamlit as st
 import os
 
+def clickable_image(image_path, key, page):
+    with st.container():
+        # On crée un lien cliquable autour de l'image
+        button = st.button(
+            label="",
+            key=key,
+            help=page,
+            args=(page,),
+            on_click=lambda: switch_page(page),
+        )
+        st.markdown(
+            f"""
+            <style>
+                #{key} {{
+                    background-image: url("{image_path}");
+                    background-size: contain;
+                    background-repeat: no-repeat;
+                    background-position: center;
+                    height: 100px;
+                    width: 100px;
+                    border: none;
+                }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+def switch_page(page_name):
+    st.session_state.page = page_name
+    st.experimental_rerun()
+
 def show():
     st.markdown("<h1 style='text-align: center;'>Études Structure</h1>", unsafe_allow_html=True)
     st.markdown("## 🧱 <span style='color:#FF6F61;'>Béton</span>", unsafe_allow_html=True)
@@ -18,11 +49,7 @@ def show():
     for i, tool in enumerate(beton_tools):
         with cols[i]:
             image_path = os.path.join(image_dir, tool["image"])
-            if st.image(image_path, use_column_width=True):
-                pass
-            if st.button(" ", key=f"beton_{tool['label']}"):
-                st.session_state.page = tool["page"]
-                st.experimental_rerun()
+            clickable_image(image_path, key=f"img_beton_{i}", page=tool["page"])
             st.markdown(f"<div style='text-align: center;'>{tool['label']}</div>", unsafe_allow_html=True)
 
     st.markdown("---")
@@ -39,9 +66,5 @@ def show():
     for i, tool in enumerate(acier_tools):
         with cols[i]:
             image_path = os.path.join(image_dir, tool["image"])
-            if st.image(image_path, use_container_width=True):
-                pass
-            if st.button(" ", key=f"acier_{tool['label']}"):
-                st.session_state.page = tool["page"]
-                st.experimental_rerun()
+            clickable_image(image_path, key=f"img_acier_{i}", page=tool["page"])
             st.markdown(f"<div style='text-align: center;'>{tool['label']}</div>", unsafe_allow_html=True)
