@@ -1,4 +1,3 @@
-
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -6,9 +5,10 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm
 import matplotlib.pyplot as plt
 import io
+import math
 import traceback
 
-def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enrobage, M_inf, M_sup, V, V_lim):
+def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enrobage, M_inf, M_sup, V, V_lim, armatures_inf, armatures_sup, fck_cube, etriers, etriers_r=None):
     try:
         nom_fichier = f"rapport_{nom_projet.replace(' ', '_')}.pdf"
         doc = SimpleDocTemplate(nom_fichier, pagesize=A4,
@@ -20,7 +20,6 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         styles.add(ParagraphStyle(name='TitreSection', fontSize=14, leading=16, spaceAfter=12,
                                   textColor=colors.HexColor('#003366'), alignment=0, fontName="Helvetica-Bold"))
         styles.add(ParagraphStyle(name='Texte', fontSize=10, leading=14))
-        styles.add(ParagraphStyle(name='Formule', fontSize=9, leading=12, textColor=colors.darkblue))
 
         elements = []
 
@@ -28,29 +27,24 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         elements.append(Paragraph("Rapport de dimensionnement – Poutre en béton armé", styles['TitreSection']))
 
         # En-tête
-        data_header = [
-            ["Projet :", nom_projet, "Date :", date],
-            ["Partie :", partie, "Indice :", indice]
-        ]
+        data_header = [["Projet :", nom_projet, "Date :", date],
+                       ["Partie :", partie, "Indice :", indice]]
         table_header = Table(data_header, colWidths=[3*cm, 6*cm, 2*cm, 4*cm])
         elements.append(table_header)
         elements.append(Spacer(1, 12))
 
         # Caractéristiques
         elements.append(Paragraph("Caractéristiques de la poutre", styles['TitreSection']))
-        data = [
+        table = Table([
             ["Classe de béton", beton],
             ["Acier (fyk)", f"{fyk} N/mm²"],
             ["Largeur (b)", f"{b} cm"],
             ["Hauteur (h)", f"{h} cm"],
             ["Enrobage", f"{enrobage} cm"]
-        ]
-        table = Table(data, hAlign='LEFT', colWidths=[6 * cm, 6 * cm])
-        table.setStyle(TableStyle([
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.grey),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ]))
+        ], hAlign='LEFT', colWidths=[6 * cm, 6 * cm])
+        table.setStyle(TableStyle([('BOX', (0,0), (-1,-1), 0.5, colors.grey),
+                                   ('INNERGRID', (0,0), (-1,-1), 0.25, colors.grey),
+                                   ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
         elements.append(table)
         elements.append(Spacer(1, 12))
 
@@ -64,30 +58,61 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
             elements.append(Paragraph(f"Effort tranchant réduit Vlim = {V_lim:.1f} kN", styles['Texte']))
         elements.append(Spacer(1, 12))
 
-        # Vérification hauteur utile
+        # Hauteur utile
         elements.append(Paragraph("Vérification de la hauteur utile", styles['TitreSection']))
         mu = 12.96
         d_calcule = ((M_inf * 1e6) / (0.1708 * b * 10 * mu)) ** 0.5 / 10
         d_min_total = d_calcule + enrobage
 
-        # Formule LaTeX en image
-        # Formule LaTeX en image – corrigée, non déformée
-        fig, ax = plt.subplots(figsize=(2, 0.8))  # Taille plus équilibrée
+        fig, ax = plt.subplots(figsize=(1.97, 0.8), dpi=300)
         ax.axis("off")
-        latex_formula = (
-        rf"$h_{{min}} = \sqrt{{\frac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}} = {d_calcule:.1f}\,\mathrm{{cm}}$"
-        )
-        ax.text(0.5, 0.5, latex_formula, ha="center", va="center", fontsize=11)
+        latex_formula = rf"$\sqrt{{rac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b} \cdot 10 \cdot {mu}}}}}$"
+        ax.text(0.5, 0.5, latex_formula, ha="center", va="center", fontsize=10)
         buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=300, bbox_inches='tight', transparent=True)
+        plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
         plt.close(fig)
         buf.seek(0)
-        elements.append(Image(buf, width=12 * cm))  # On ne force plus la hauteur
-
-        elements.append(Paragraph(f"hmin + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
+        elements.append(Paragraph("H<sub>min</sub> = ", styles['Texte']))
+        elements.append(Image(buf, width=5 * cm))
+        elements.append(Paragraph(f"= {d_calcule:.1f} cm", styles['Texte']))
+        elements.append(Paragraph(f"Hmin + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
         elements.append(Spacer(1, 12))
 
-        # Génération du PDF
+        # Armatures inférieures
+        elements.append(Paragraph("Armatures inférieures", styles['TitreSection']))
+        d = h - enrobage
+        fyd = fyk / 1.15
+        As_calc = M_inf * 1e6 / (fyd * 0.9 * d * 10)
+        elements.append(Paragraph(f"d = h - enrobage = {d:.1f} cm", styles['Texte']))
+        elements.append(Paragraph(f"fyd = fyk / 1.15 = {fyd:.1f} N/mm²", styles['Texte']))
+        elements.append(Paragraph(f"As_inf calculé = {As_calc:.1f} mm²", styles['Texte']))
+        elements.append(Paragraph(f"Armatures choisies : {armatures_inf}", styles['Texte']))
+        elements.append(Spacer(1, 12))
+
+        # Armatures supérieures (optionnel)
+        if M_sup > 0:
+            elements.append(Paragraph("Armatures supérieures", styles['TitreSection']))
+            As_sup = M_sup * 1e6 / (fyd * 0.9 * d * 10)
+            elements.append(Paragraph(f"As_sup calculé = {As_sup:.1f} mm²", styles['Texte']))
+            elements.append(Paragraph(f"Armatures choisies : {armatures_sup}", styles['Texte']))
+            elements.append(Spacer(1, 12))
+
+        # Effort tranchant
+        if V > 0:
+            tau = V * 1e3 / (0.75 * b * h * 100)
+            elements.append(Paragraph("Vérification de l'effort tranchant", styles['TitreSection']))
+            elements.append(Paragraph(f"τ = {tau:.2f} N/mm²", styles['Texte']))
+            elements.append(Paragraph(f"Etriers choisis : {etriers}", styles['Texte']))
+            elements.append(Spacer(1, 12))
+
+        if V_lim > 0:
+            tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
+            elements.append(Paragraph("Vérification de l'effort tranchant réduit", styles['TitreSection']))
+            elements.append(Paragraph(f"τ = {tau_r:.2f} N/mm²", styles['Texte']))
+            if etriers_r:
+                elements.append(Paragraph(f"Etriers réduits choisis : {etriers_r}", styles['Texte']))
+            elements.append(Spacer(1, 12))
+
         doc.build(elements)
         return nom_fichier
 
