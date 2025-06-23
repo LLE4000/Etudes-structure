@@ -1,6 +1,6 @@
-
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+                                 Image, PageBreak)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import io
 import traceback
 import math
+from datetime import datetime
 
 def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enrobage, M_inf, M_sup, V, V_lim):
     try:
@@ -31,7 +32,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         mu = 12.96
         d = h - enrobage
 
-        nom_fichier = f"rapport_{nom_projet.replace(' ', '_')}.pdf"
+        nom_fichier = f"rapport_{nom_projet.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         doc = SimpleDocTemplate(nom_fichier, pagesize=A4,
                                 rightMargin=2 * cm, leftMargin=2 * cm,
                                 topMargin=2 * cm, bottomMargin=2 * cm)
@@ -89,7 +90,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         fig, ax = plt.subplots(figsize=(1.97, 0.6))
         ax.axis("off")
         latex_formula = (
-            rf"$\sqrt{{\frac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b:.0f} \cdot 10 \cdot {mu}}}}}$"
+            rf"$\sqrt{{rac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b:.0f} \cdot 10 \cdot {mu:.2f}}}}}$"
         )
         ax.text(0.5, 0.5, latex_formula, ha="center", va="center", fontsize=11)
         buf = io.BytesIO()
@@ -99,15 +100,27 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         elements.append(Paragraph(f"h_min =", styles['Texte']))
         elements.append(Image(buf, width=5 * cm))
         elements.append(Paragraph(f"h_min + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
-        elements.append(Spacer(1, 12))
+        elements.append(PageBreak())
 
         # --- Armatures inférieures ---
         elements.append(Paragraph("Armatures inférieures", styles['TitreSection']))
         As_inf = (M_inf * 1e6) / (fyd * 0.9 * d * 10)
-        As_min = 0.0013 * b * h * 100  # en mm²
+        As_min = 0.0013 * b * h * 100
         As_max = 0.04 * b * h * 100
         elements.append(Paragraph(f"d = h - enrobage = {d:.1f} cm", styles['Texte']))
         elements.append(Paragraph(f"fyd = fyk / 1.15 = {fyd:.1f} N/mm²", styles['Texte']))
+
+        # Image formule As
+        fig2, ax2 = plt.subplots(figsize=(1.97, 0.6))
+        ax2.axis("off")
+        latex_as = rf"$A_s = rac{{M}}{{f_{{yd}} \cdot 0.9 \cdot d}}$"
+        ax2.text(0.5, 0.5, latex_as, ha="center", va="center", fontsize=11)
+        buf2 = io.BytesIO()
+        plt.savefig(buf2, format='png', dpi=300, bbox_inches='tight', transparent=True)
+        plt.close(fig2)
+        buf2.seek(0)
+        elements.append(Image(buf2, width=5 * cm))
+
         elements.append(Paragraph(f"As_inf = {As_inf:.1f} mm²", styles['Texte']))
         elements.append(Paragraph(f"As_min = {As_min:.1f} mm², As_max = {As_max:.1f} mm²", styles['Texte']))
         elements.append(Spacer(1, 12))
@@ -122,13 +135,11 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         # --- Vérification effort tranchant ---
         elements.append(Paragraph("Vérification de l'effort tranchant", styles['TitreSection']))
         tau = (V * 1e3) / (0.75 * b * h * 100)
-        tau_adm = 0.6  # valeur exemple, à ajuster selon le béton
+        tau_adm = 0.6
         elements.append(Paragraph(f"τ = {tau:.2f} N/mm²", styles['Texte']))
         elements.append(Paragraph(f"τ_adm = {tau_adm:.2f} N/mm²", styles['Texte']))
-        if tau <= tau_adm:
-            elements.append(Paragraph("✔️ τ ≤ τ_adm → pas d’étriers nécessaires", styles['Texte']))
-        else:
-            elements.append(Paragraph("❌ τ > τ_adm → étriers nécessaires", styles['Texte']))
+        elements.append(Paragraph("✔️ τ ≤ τ_adm → pas d’étriers nécessaires" if tau <= tau_adm
+                                  else "❌ τ > τ_adm → étriers nécessaires", styles['Texte']))
         elements.append(Spacer(1, 12))
 
         # --- Effort tranchant réduit ---
@@ -136,14 +147,13 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
             elements.append(Paragraph("Vérification de l'effort tranchant réduit", styles['TitreSection']))
             tau_r = (V_lim * 1e3) / (0.75 * b * h * 100)
             elements.append(Paragraph(f"τ_réduit = {tau_r:.2f} N/mm²", styles['Texte']))
-            if tau_r <= tau_adm:
-                elements.append(Paragraph("✔️ τ_réduit ≤ τ_adm → pas d’étriers nécessaires", styles['Texte']))
-            else:
-                elements.append(Paragraph("❌ τ_réduit > τ_adm → étriers nécessaires", styles['Texte']))
+            elements.append(Paragraph("✔️ τ_réduit ≤ τ_adm → pas d’étriers nécessaires" if tau_r <= tau_adm
+                                      else "❌ τ_réduit > τ_adm → étriers nécessaires", styles['Texte']))
             elements.append(Spacer(1, 12))
 
         doc.build(elements)
         return nom_fichier
 
     except Exception as err:
-        raise ValueError("Erreur dans la génération du PDF :\n" + traceback.format_exc())
+        raise ValueError("Erreur dans la génération du PDF :
+" + traceback.format_exc())
