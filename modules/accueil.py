@@ -1,12 +1,12 @@
 import streamlit as st
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 import os
 
 def show():
     st.markdown("<h1 style='text-align: center;'>Études Structure</h1>", unsafe_allow_html=True)
     st.markdown("## 🧱 Béton")
 
-    image_dir = "assets"  # dossier contenant les images
+    image_dir = "assets"
 
     beton_tools = [
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
@@ -18,7 +18,11 @@ def show():
     cols = st.columns(4)
     for i, tool in enumerate(beton_tools):
         with cols[i]:
-            st.image(os.path.join(image_dir, tool["image"]), use_column_width="always")
+            image_path = os.path.join(image_dir, tool["image"])
+            try:
+                st.image(image_path, use_container_width=True)
+            except UnidentifiedImageError:
+                st.error(f"Erreur de lecture de l'image : {tool['image']}")
             if st.button(tool["label"], key=f"beton_{tool['label']}"):
                 st.session_state.page = tool["page"]
 
@@ -35,6 +39,10 @@ def show():
     cols = st.columns(4)
     for i, tool in enumerate(acier_tools):
         with cols[i]:
-            st.image(os.path.join(image_dir, tool["image"]), use_column_width="always")
+            image_path = os.path.join(image_dir, tool["image"])
+            try:
+                st.image(image_path, use_container_width=True)
+            except UnidentifiedImageError:
+                st.error(f"Erreur de lecture de l'image : {tool['image']}")
             if st.button(tool["label"], key=f"acier_{tool['label']}"):
                 st.session_state.page = tool["page"]
