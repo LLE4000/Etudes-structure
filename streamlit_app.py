@@ -11,9 +11,14 @@ from modules import (
     tableau_profiles
 )
 
-# 🔁 Lecture du paramètre dans l'URL
-page = st.query_params.get("page", ["Accueil"])[0]
-st.session_state.page = page
+# ✅ Initialisation sécurisée de session_state.page
+if "page" not in st.session_state:
+    st.session_state.page = "Accueil"
+
+# ✅ Lecture du paramètre dans l'URL (compatibilité moderne)
+query_params = st.query_params if hasattr(st, "query_params") else st.experimental_get_query_params()
+if "page" in query_params:
+    st.session_state.page = query_params["page"][0]
 
 # 🖼️ Configuration de la page
 st.set_page_config(
@@ -35,5 +40,5 @@ pages = {
     "Tableau profilés": tableau_profiles
 }
 
-# ▶️ Affichage dynamique
+# ▶️ Affichage de la page demandée
 pages.get(st.session_state.page, accueil).show()
