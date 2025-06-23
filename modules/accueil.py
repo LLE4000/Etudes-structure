@@ -2,6 +2,7 @@ import streamlit as st
 
 def show():
     st.markdown("<h1 style='text-align: center;'>Études Structure</h1>", unsafe_allow_html=True)
+
     base_url = "https://raw.githubusercontent.com/LLE4000/Etudes-structure/main/assets"
 
     def render_section(titre_html, tools):
@@ -9,27 +10,24 @@ def show():
         cols = st.columns(4)
         for i, tool in enumerate(tools):
             with cols[i]:
-                # Crée un bouton invisible mais cliquable
-                if st.button(
+                clicked = st.button(
                     label="",
-                    key=tool["label"],
-                    help=tool["label"],
-                ):
-                    st.experimental_set_query_params(page=tool["page"])
-                    st.session_state.page = tool["page"]
-                    st.rerun()
-
+                    key=f"btn_{tool['page']}",
+                    help=tool["label"]
+                )
                 st.markdown(
                     f"""
                     <div style="text-align: center;">
-                        <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px; margin-bottom: 8px;" />
-                        <div>{tool['label']}</div>
+                        <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px;" />
+                        <div style="margin-top: 8px;">{tool['label']}</div>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
+                if clicked:
+                    st.session_state.page = tool["page"]
 
-    # 🧱 Béton
+    # 🧱 Outils béton
     beton_tools = [
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
         {"image": "Logo_dalle.png", "label": "Dalle", "page": "Dalle"},
@@ -40,7 +38,7 @@ def show():
 
     st.markdown("---")
 
-    # 🏗️ Acier
+    # 🏗️ Outils acier
     acier_tools = [
         {"image": "Logo_poutre.png", "label": "Profilé métallique", "page": "Profilé métallique"},
         {"image": "Logo_poutre.png", "label": "Choix profilé", "page": "Choix profilé"},
