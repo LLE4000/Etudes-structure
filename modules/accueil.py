@@ -3,7 +3,7 @@ import os
 
 def show():
     st.markdown("<h1 style='text-align: center;'>Études Structure</h1>", unsafe_allow_html=True)
-    st.markdown("## 🧱 Béton")
+    st.markdown("## 🧱 <span style='color:#FF6F61;'>Béton</span>", unsafe_allow_html=True)
 
     image_dir = "assets"
 
@@ -18,18 +18,15 @@ def show():
     for i, tool in enumerate(beton_tools):
         with cols[i]:
             image_path = os.path.join(image_dir, tool["image"])
-            st.markdown(
-                f"""
-                <a href="#" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', key: 'page', value: '{tool['page']}' }}, '*')">
-                    <img src="{image_path}" style="width:100%; border-radius:12px;">
-                </a>
-                <div style="text-align:center; margin-top:4px;">{tool['label']}</div>
-                """,
-                unsafe_allow_html=True
-            )
+            if st.image(image_path, use_column_width=True):
+                pass
+            if st.button(" ", key=f"beton_{tool['label']}"):
+                st.session_state.page = tool["page"]
+                st.experimental_rerun()
+            st.markdown(f"<div style='text-align: center;'>{tool['label']}</div>", unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("## 🏗️ Acier")
+    st.markdown("## 🏗️ <span style='color:#FFA500;'>Acier</span>", unsafe_allow_html=True)
 
     acier_tools = [
         {"image": "Logo_poutre.png", "label": "Profilé métallique", "page": "Profilé métallique"},
@@ -42,12 +39,9 @@ def show():
     for i, tool in enumerate(acier_tools):
         with cols[i]:
             image_path = os.path.join(image_dir, tool["image"])
-            st.markdown(
-                f"""
-                <a href="#" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', key: 'page', value: '{tool['page']}' }}, '*')">
-                    <img src="{image_path}" style="width:100%; border-radius:12px;">
-                </a>
-                <div style="text-align:center; margin-top:4px;">{tool['label']}</div>
-                """,
-                unsafe_allow_html=True
-            )
+            if st.image(image_path, use_container_width=True):
+                pass
+            if st.button(" ", key=f"acier_{tool['label']}"):
+                st.session_state.page = tool["page"]
+                st.experimental_rerun()
+            st.markdown(f"<div style='text-align: center;'>{tool['label']}</div>", unsafe_allow_html=True)
