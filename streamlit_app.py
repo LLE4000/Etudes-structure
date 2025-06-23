@@ -11,21 +11,22 @@ from modules import (
     tableau_profiles
 )
 
-# ✅ Initialisation de la page
-if "page" not in st.session_state:
-    st.session_state.page = "Accueil"
-
-# ✅ Lecture du paramètre dans l'URL (sans rerun)
-query_params = st.query_params if hasattr(st, "query_params") else st.experimental_get_query_params()
-if "page" in query_params:
-    st.session_state.page = query_params["page"][0]
-
 # 🖼️ Configuration de la page
 st.set_page_config(
     page_title="Études Structure",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# ✅ Récupération des paramètres d'URL
+query_params = st.query_params if hasattr(st, "query_params") else st.experimental_get_query_params()
+page = query_params.get("page", [None])[0]
+
+# ✅ Mémoriser ou mettre à jour la page
+if page:
+    st.session_state.page = page
+elif "page" not in st.session_state:
+    st.session_state.page = "Accueil"
 
 # 🧠 Dictionnaire des pages
 pages = {
@@ -41,5 +42,4 @@ pages = {
 }
 
 # ▶️ Affichage de la page sélectionnée
-page_name = st.session_state.get("page", "Accueil")
-pages.get(page_name, accueil).show()
+pages.get(st.session_state.page, accueil).show()
