@@ -15,10 +15,11 @@ from modules import (
 if "page" not in st.session_state:
     st.session_state.page = "Accueil"
 
-# ✅ Lecture du paramètre dans l'URL (compatibilité moderne)
+# ✅ Lecture du paramètre dans l'URL (avec rerun)
 query_params = st.query_params if hasattr(st, "query_params") else st.experimental_get_query_params()
-if "page" in query_params:
+if "page" in query_params and query_params["page"][0] != st.session_state.page:
     st.session_state.page = query_params["page"][0]
+    st.experimental_rerun()
 
 # 🖼️ Configuration de la page
 st.set_page_config(
