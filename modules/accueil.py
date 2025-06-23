@@ -1,12 +1,12 @@
 import streamlit as st
-import os
 
 def show():
     st.markdown("<h1 style='text-align: center;'>Études Structure</h1>", unsafe_allow_html=True)
 
+    # 📁 Chemin vers les images
     image_dir = "assets"
 
-    # Section Béton
+    # 🔹 Section Béton
     st.markdown("## 🧱 <span style='color:#FF6F61;'>Béton</span>", unsafe_allow_html=True)
     beton_tools = [
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
@@ -18,18 +18,21 @@ def show():
     cols = st.columns(4)
     for i, tool in enumerate(beton_tools):
         with cols[i]:
-            image_path = os.path.join(image_dir, tool["image"])
-            if os.path.exists(image_path):
-                st.image(image_path, width=80)
-            else:
-                st.warning(f"Image manquante : {tool['image']}")
-            if st.button(tool["label"], key=f"btn_{tool['label']}"):
-                st.session_state.page = tool["page"]
-                st.experimental_rerun()
+            st.markdown(
+                f"""
+                <div style="text-align: center;">
+                    <a href="?page={tool['page']}">
+                        <img src="{image_dir}/{tool['image']}" style="width: 120px; height: 120px; margin-bottom: 5px;" />
+                    </a>
+                    <div style="margin-top: 5px;">{tool['label']}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     st.markdown("---")
 
-    # Section Acier
+    # 🔹 Section Acier
     st.markdown("## 🏗️ <span style='color:#FFA500;'>Acier</span>", unsafe_allow_html=True)
     acier_tools = [
         {"image": "Logo_poutre.png", "label": "Profilé métallique", "page": "Profilé métallique"},
@@ -41,11 +44,14 @@ def show():
     cols = st.columns(4)
     for i, tool in enumerate(acier_tools):
         with cols[i]:
-            image_path = os.path.join(image_dir, tool["image"])
-            if os.path.exists(image_path):
-                st.image(image_path, width=80)
-            else:
-                st.warning(f"Image manquante : {tool['image']}")
-            if st.button(tool["label"], key=f"btn_{tool['label']}"):
-                st.session_state.page = tool["page"]
-                st.experimental_rerun()
+            st.markdown(
+                f"""
+                <div style="text-align: center;">
+                    <a href="?page={tool['page']}">
+                        <img src="{image_dir}/{tool['image']}" style="width: 120px; height: 120px; margin-bottom: 5px;" />
+                    </a>
+                    <div style="margin-top: 5px;">{tool['label']}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
