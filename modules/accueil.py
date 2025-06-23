@@ -18,11 +18,15 @@ def show():
     for i, tool in enumerate(beton_tools):
         with cols[i]:
             image_path = os.path.join(image_dir, tool["image"])
-            # Création d'un lien cliquable avec l'image
-            if st.button("", key=f"img_beton_{i}"):
-                st.session_state.page = tool["page"]
-            st.image(image_path, use_container_width=True)
-            st.markdown(f"<div style='text-align:center'>{tool['label']}</div>", unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <a href="#" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', key: 'page', value: '{tool['page']}' }}, '*')">
+                    <img src="{image_path}" style="width:100%; border-radius:12px;">
+                </a>
+                <div style="text-align:center; margin-top:4px;">{tool['label']}</div>
+                """,
+                unsafe_allow_html=True
+            )
 
     st.markdown("---")
     st.markdown("## 🏗️ Acier")
@@ -38,7 +42,12 @@ def show():
     for i, tool in enumerate(acier_tools):
         with cols[i]:
             image_path = os.path.join(image_dir, tool["image"])
-            if st.button("", key=f"img_acier_{i}"):
-                st.session_state.page = tool["page"]
-            st.image(image_path, use_container_width=True)
-            st.markdown(f"<div style='text-align:center'>{tool['label']}</div>", unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <a href="#" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', key: 'page', value: '{tool['page']}' }}, '*')">
+                    <img src="{image_path}" style="width:100%; border-radius:12px;">
+                </a>
+                <div style="text-align:center; margin-top:4px;">{tool['label']}</div>
+                """,
+                unsafe_allow_html=True
+            )
