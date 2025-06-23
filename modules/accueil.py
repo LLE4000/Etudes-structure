@@ -10,22 +10,31 @@ def show():
         cols = st.columns(4)
         for i, tool in enumerate(tools):
             with cols[i]:
-                clicked = st.button(
-                    label="",
-                    key=f"btn_{tool['page']}",
-                    help=tool["label"]
-                )
+                tool_id = f"tool_{tool['page'].replace(' ', '_')}"
+                js = f"""
+                <script>
+                    function click_{tool_id}() {{
+                        const streamlitInput = window.parent.document.querySelector('input[data-testid="{tool_id}"]');
+                        if (streamlitInput) {{
+                            streamlitInput.click();
+                        }}
+                    }}
+                </script>
+                """
                 st.markdown(
                     f"""
                     <div style="text-align: center;">
-                        <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px;" />
+                        {js}
+                        <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px; cursor:pointer;" onclick="click_{tool_id}()" />
                         <div style="margin-top: 8px;">{tool['label']}</div>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
-                if clicked:
+                # Élément caché pour activer le changement de page
+                if st.checkbox("", key=tool_id):
                     st.session_state.page = tool["page"]
+                    st.experimental_rerun()
 
     # 🧱 Outils béton
     beton_tools = [
