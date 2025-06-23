@@ -89,7 +89,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         fig, ax = plt.subplots(figsize=(1.97, 0.6))
         ax.axis("off")
         latex_formula = (
-            rf"$\sqrt{{rac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b:.0f} \cdot 10 \cdot {mu}}}}}$"
+            rf"$\sqrt{{\frac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b:.0f} \cdot 10 \cdot {mu}}}}}$"
         )
         ax.text(0.5, 0.5, latex_formula, ha="center", va="center", fontsize=11)
         buf = io.BytesIO()
