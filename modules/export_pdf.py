@@ -1,3 +1,4 @@
+
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -10,7 +11,14 @@ import math
 
 def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enrobage, M_inf, M_sup, V, V_lim):
     try:
-        # Conversion sécurisée des valeurs
+        # Vérification des entrées
+        for var_name, value in [("fyk", fyk), ("b", b), ("h", h), ("enrobage", enrobage),
+                                ("M_inf", M_inf), ("M_sup", M_sup), ("V", V), ("V_lim", V_lim)]:
+            if value in ("", None):
+                raise ValueError(f"Erreur : la valeur de {var_name} est vide ou invalide.")
+
+        # Conversion sécurisée
+        fyk = float(fyk)
         b = float(b)
         h = float(h)
         enrobage = float(enrobage)
@@ -18,7 +26,6 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         M_sup = float(M_sup)
         V = float(V)
         V_lim = float(V_lim)
-        fyk = float(fyk)
 
         fyd = fyk / 1.15
         mu = 12.96
@@ -78,7 +85,8 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         elements.append(Paragraph("Vérification de la hauteur utile", styles['TitreSection']))
         d_calcule = ((M_inf * 1e6) / (0.1708 * b * 10 * mu)) ** 0.5 / 10
         d_min_total = d_calcule + enrobage
-        fig, ax = plt.subplots(figsize=(1.97, 0.6))  # ≈ 5 cm de large
+
+        fig, ax = plt.subplots(figsize=(1.97, 0.6))
         ax.axis("off")
         latex_formula = (
             rf"$\sqrt{{rac{{{M_inf:.1f} \cdot 10^6}}{{0.1708 \cdot {b:.0f} \cdot 10 \cdot {mu}}}}}$"
@@ -93,7 +101,7 @@ def generer_rapport_pdf(nom_projet, partie, date, indice, beton, fyk, b, h, enro
         elements.append(Paragraph(f"h_min + enrobage = {d_min_total:.1f} cm ≤ h = {h:.1f} cm", styles['Texte']))
         elements.append(Spacer(1, 12))
 
-        # TODO : Ajouter armatures inférieures, supérieures et vérif effort tranchant ici (partie suivante)
+        # Prochaine étape : armatures et efforts tranchants
 
         doc.build(elements)
         return nom_fichier
