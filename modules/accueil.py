@@ -4,7 +4,6 @@ import os
 def show():
     st.markdown("<h1 style='text-align: center;'>Études Structure</h1>", unsafe_allow_html=True)
 
-    # 🔧 Dossier contenant les images
     image_dir = "assets"
 
     # Outils béton
@@ -24,10 +23,12 @@ def show():
             if os.path.exists(image_path):
                 st.markdown(
                     f"""
-                    <a href="#" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', key: 'page', value: '{tool["page"]}' }}, '*')">
-                        <img src="{image_path}" style="width: 80px; height: 80px; display: block; margin: auto;" />
-                    </a>
-                    <p style="text-align: center;">{tool["label"]}</p>
+                    <div style='text-align:center'>
+                        <a href='?page={tool["page"]}'>
+                            <img src="{image_path}" style="width: 80px; height: 80px;" />
+                        </a>
+                        <p>{tool["label"]}</p>
+                    </div>
                     """,
                     unsafe_allow_html=True
                 )
@@ -45,7 +46,6 @@ def show():
         {"image": "Logo_poutre.png", "label": "Tableau profilés", "page": "Tableau profilés"},
     ]
 
-    # Affichage des icônes acier
     cols = st.columns(4)
     for i, tool in enumerate(acier_tools):
         with cols[i]:
@@ -53,10 +53,12 @@ def show():
             if os.path.exists(image_path):
                 st.markdown(
                     f"""
-                    <a href="#" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', key: 'page', value: '{tool["page"]}' }}, '*')">
-                        <img src="{image_path}" style="width: 80px; height: 80px; display: block; margin: auto;" />
-                    </a>
-                    <p style="text-align: center;">{tool["label"]}</p>
+                    <div style='text-align:center'>
+                        <a href='?page={tool["page"]}'>
+                            <img src="{image_path}" style="width: 80px; height: 80px;" />
+                        </a>
+                        <p>{tool["label"]}</p>
+                    </div>
                     """,
                     unsafe_allow_html=True
                 )
