@@ -3,10 +3,10 @@ import streamlit as st
 def show():
     st.markdown("<h1 style='text-align: center;'>Études Structure</h1>", unsafe_allow_html=True)
 
-    # 📁 Chemin vers les images
-    image_dir = "assets"
+    # 🔗 Lien direct vers ton GitHub (brut) pour les images
+    base_url = "https://raw.githubusercontent.com/LLE4000/Etudes-structure/main/assets"
 
-    # 🔹 Section Béton
+    # 🧱 Outils béton
     st.markdown("## 🧱 <span style='color:#FF6F61;'>Béton</span>", unsafe_allow_html=True)
     beton_tools = [
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
@@ -22,9 +22,9 @@ def show():
                 f"""
                 <div style="text-align: center;">
                     <a href="?page={tool['page']}">
-                        <img src="{image_dir}/{tool['image']}" style="width: 120px; height: 120px; margin-bottom: 5px;" />
+                        <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px;" />
                     </a>
-                    <div style="margin-top: 5px;">{tool['label']}</div>
+                    <div style="margin-top: 8px;">{tool['label']}</div>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -32,7 +32,7 @@ def show():
 
     st.markdown("---")
 
-    # 🔹 Section Acier
+    # 🏗️ Outils acier
     st.markdown("## 🏗️ <span style='color:#FFA500;'>Acier</span>", unsafe_allow_html=True)
     acier_tools = [
         {"image": "Logo_poutre.png", "label": "Profilé métallique", "page": "Profilé métallique"},
@@ -48,9 +48,9 @@ def show():
                 f"""
                 <div style="text-align: center;">
                     <a href="?page={tool['page']}">
-                        <img src="{image_dir}/{tool['image']}" style="width: 120px; height: 120px; margin-bottom: 5px;" />
+                        <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px;" />
                     </a>
-                    <div style="margin-top: 5px;">{tool['label']}</div>
+                    <div style="margin-top: 8px;">{tool['label']}</div>
                 </div>
                 """,
                 unsafe_allow_html=True
