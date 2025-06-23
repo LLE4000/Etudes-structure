@@ -1,12 +1,12 @@
 import streamlit as st
-import os
 
 def show():
     st.markdown("<h1 style='text-align: center;'>Études Structure</h1>", unsafe_allow_html=True)
 
+    # 🔧 Chemin vers le dossier des images
     image_dir = "assets"
 
-    # Outils béton
+    # Section Béton
     st.markdown("## 🧱 <span style='color:#FF6F61;'>Béton</span>", unsafe_allow_html=True)
     beton_tools = [
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
@@ -15,29 +15,23 @@ def show():
         {"image": "Logo_poutre.png", "label": "Recouvrement", "page": "Recouvrement"},
     ]
 
-    # Affichage des icônes béton
     cols = st.columns(4)
     for i, tool in enumerate(beton_tools):
         with cols[i]:
-            image_path = os.path.join(image_dir, tool["image"])
-            if os.path.exists(image_path):
-                st.markdown(
-                    f"""
-                    <div style='text-align:center'>
-                        <a href='?page={tool["page"]}'>
-                            <img src="{image_path}" style="width: 80px; height: 80px;" />
-                        </a>
-                        <p>{tool["label"]}</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-            else:
-                st.warning(f"Image manquante : {tool['image']}")
+            image_url = f"{image_dir}/{tool['image']}"
+            st.markdown(
+                f"""
+                <a href="?page={tool['page']}">
+                    <img src="{image_url}" style="width: 80px; height: 80px; display: block; margin: auto;" />
+                </a>
+                <p style="text-align: center;">{tool["label"]}</p>
+                """,
+                unsafe_allow_html=True
+            )
 
     st.markdown("---")
 
-    # Outils acier
+    # Section Acier
     st.markdown("## 🏗️ <span style='color:#FFA500;'>Acier</span>", unsafe_allow_html=True)
     acier_tools = [
         {"image": "Logo_poutre.png", "label": "Profilé métallique", "page": "Profilé métallique"},
@@ -49,18 +43,13 @@ def show():
     cols = st.columns(4)
     for i, tool in enumerate(acier_tools):
         with cols[i]:
-            image_path = os.path.join(image_dir, tool["image"])
-            if os.path.exists(image_path):
-                st.markdown(
-                    f"""
-                    <div style='text-align:center'>
-                        <a href='?page={tool["page"]}'>
-                            <img src="{image_path}" style="width: 80px; height: 80px;" />
-                        </a>
-                        <p>{tool["label"]}</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-            else:
-                st.warning(f"Image manquante : {tool['image']}")
+            image_url = f"{image_dir}/{tool['image']}"
+            st.markdown(
+                f"""
+                <a href="?page={tool['page']}">
+                    <img src="{image_url}" style="width: 80px; height: 80px; display: block; margin: auto;" />
+                </a>
+                <p style="text-align: center;">{tool["label"]}</p>
+                """,
+                unsafe_allow_html=True
+            )
