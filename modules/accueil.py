@@ -43,13 +43,3 @@ def show():
         {"image": "Logo_poutre.png", "label": "Tableau profilés", "page": "Tableau profilés"},
     ]
     render_section("## 🏗️ <span style='color:#FFA500;'>Acier</span>", acier_tools)
-
-Lucien LEJEUNE
-Ingénieur de projet
-Service stabilité et méthodes
-Avenue Demeylaan 66 – B-1160 Bruxelles-Brussel
-RPM Bruxelles/RPR Brussel TVA/BTW BE 0424.905.926
-M.+32 (0)496 67 66 59
-  
- 
-
