@@ -5,7 +5,7 @@ from modules import (
     dalle,
     profile_metal,
     tableau_armatures,
-    recouvrement,
+    age_beton,
     choix_profile,
     flambement,
     tableau_profiles
@@ -36,7 +36,7 @@ pages = {
     "Dalle": dalle,
     "Profilé métallique": profile_metal,
     "Tableau armatures": tableau_armatures,
-    "Recouvrement": recouvrement,
+    "Age béton": age_beton,
     "Choix profilé": choix_profile,
     "Flambement": flambement,
     "Tableau profilés": tableau_profiles
