@@ -20,8 +20,7 @@ def show():
     with btn1:
         if st.button("🏠 Accueil", use_container_width=True):
             st.session_state.page = "Accueil"
-            st.experimental_rerun()
-
+            st.rerun()
     
     # 🔄 Réinitialiser
     with btn2:
