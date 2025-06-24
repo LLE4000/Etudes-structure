@@ -10,6 +10,7 @@ def show():
         st.session_state.retour_accueil_demande = False
         st.experimental_rerun()
 
+
     st.markdown("## Poutre en béton armé")
 
        # Ligne des 5 boutons
@@ -18,8 +19,9 @@ def show():
     # 🏠 Accueil
     with btn1:
         if st.button("🏠 Accueil", use_container_width=True):
-            st.session_state.retour_accueil_demande = True
+            st.session_state.page = "Accueil"
             st.experimental_rerun()
+
     
     # 🔄 Réinitialiser
     with btn2:
