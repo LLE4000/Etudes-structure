@@ -3,7 +3,7 @@ import streamlit as st
 def show():
     st.markdown("<h1 style='text-align: center;'>Études Structure</h1>", unsafe_allow_html=True)
 
-    base_url = https://raw.githubusercontent.com/LLE4000/Etudes-structure/main/assets
+    base_url = "https://raw.githubusercontent.com/LLE4000/Etudes-structure/main/assets"
 
     def render_section(titre_html, tools):
         st.markdown(titre_html, unsafe_allow_html=True)
