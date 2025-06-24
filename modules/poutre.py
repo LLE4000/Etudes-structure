@@ -5,54 +5,44 @@ import math
 import base64
 
 def show():
+    # 🔁 Retour à l'accueil demandé
+    if st.session_state.get("retour_accueil_demande"):
+        st.session_state.page = "Accueil"
+        st.session_state.retour_accueil_demande = False
+        st.rerun()
+
     st.markdown("## Poutre en béton armé")
 
-    # Ligne des 5 boutons
+    # --- Ligne des 5 boutons ---
     btn1, btn2, btn3, btn4, btn5 = st.columns(5)
 
     # 🏠 Accueil
     with btn1:
-        if st.button("🏠 Accueil", use_container_width=True):
+        if st.button("🏠 Accueil", use_container_width=True, key="btn_accueil"):
             st.session_state.retour_accueil_demande = True
             st.rerun()
 
     # 🔄 Réinitialiser
     with btn2:
-        if st.button("🔄 Réinitialiser", use_container_width=True):
+        if st.button("🔄 Réinitialiser", use_container_width=True, key="btn_reset"):
             st.rerun()
 
     # 💾 Enregistrer
     with btn3:
-        if st.button("💾 Enregistrer", use_container_width=True):
+        if st.button("💾 Enregistrer", use_container_width=True, key="btn_save"):
             dict_a_sauver = {k: v for k, v in st.session_state.items() if not k.startswith("_")}
             contenu_json = json.dumps(dict_a_sauver, indent=2)
             b64 = base64.b64encode(contenu_json.encode()).decode()
             href = f'<a href="data:file/json;base64,{b64}" download="poutre_donnees.json">Télécharger</a>'
             st.markdown(href, unsafe_allow_html=True)
 
-    # 🔁 Redirection vers l’accueil (à la toute fin de show)
-    if st.session_state.get("retour_accueil_demande", False):
-        st.session_state.page = "Accueil"
-        st.session_state.retour_accueil_demande = False
-        st.experimental_rerun()
-
-    
-    # 💾 Enregistrer
-    with btn3:
-        if st.button("💾 Enregistrer", use_container_width=True):
-            dict_a_sauver = {k: v for k, v in st.session_state.items() if not k.startswith("_")}
-            contenu_json = json.dumps(dict_a_sauver, indent=2)
-            b64 = base64.b64encode(contenu_json.encode()).decode()
-            href = f'<a href="data:file/json;base64,{b64}" download="poutre_donnees.json">Télécharger</a>'
-            st.markdown(href, unsafe_allow_html=True)
-    
     # 📂 Ouvrir
     with btn4:
-        if st.button("📂 Ouvrir", use_container_width=True):
+        if st.button("📂 Ouvrir", use_container_width=True, key="btn_open"):
             st.session_state.afficher_upload = True
-    
+
     if st.session_state.get("afficher_upload", False):
-        uploaded_file = st.file_uploader("Charger un fichier JSON", type="json", label_visibility="collapsed")
+        uploaded_file = st.file_uploader("Charger un fichier JSON", type="json", label_visibility="collapsed", key="upload_json")
         if uploaded_file:
             donnees = json.load(uploaded_file)
             for k, v in donnees.items():
@@ -60,10 +50,10 @@ def show():
             st.success("✅ Données chargées avec succès.")
             st.session_state.afficher_upload = False
             st.rerun()
-    
+
     # 📄 Générer PDF
     with btn5:
-        if st.button("📄 Générer PDF", use_container_width=True):
+        if st.button("📄 Générer PDF", use_container_width=True, key="btn_pdf"):
             from modules.export_pdf import generer_rapport_pdf
             fichier_pdf = generer_rapport_pdf(
                 nom_projet=st.session_state.get("nom_projet", ""),
@@ -85,9 +75,11 @@ def show():
                     label="⬇️ Télécharger le rapport PDF",
                     data=f,
                     file_name=fichier_pdf,
-                    mime="application/pdf"
+                    mime="application/pdf",
+                    key="btn_pdf_dl"
                 )
             st.success("✅ Rapport généré")
+
     # Données béton
 
     with open("beton_classes.json", "r") as f:
