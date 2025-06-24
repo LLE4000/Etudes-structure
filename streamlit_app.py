@@ -11,20 +11,15 @@ from modules import (
     tableau_profiles
 )
 
-# 🖼️ Configuration de la page
 st.set_page_config(
     page_title="Études Structure",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# ✅ Récupération des paramètres d'URL (CORRECTION ICI)
-query_params = st.experimental_get_query_params()
-page = query_params.get("page", [None])[0]
-
-# ✅ Mémoriser ou mettre à jour la page
-if page:
-    st.session_state.page = page
+# ✅ Récupération de la page depuis les paramètres URL
+if "page" in st.query_params:
+    st.session_state.page = st.query_params["page"]
 elif "page" not in st.session_state:
     st.session_state.page = "Accueil"
 
