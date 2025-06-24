@@ -18,8 +18,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ✅ Récupération des paramètres d'URL
-query_params = st.query_params if hasattr(st, "query_params") else st.experimental_get_query_params()
+# ✅ Récupération des paramètres d'URL (CORRECTION ICI)
+query_params = st.experimental_get_query_params()
 page = query_params.get("page", [None])[0]
 
 # ✅ Mémoriser ou mettre à jour la page
