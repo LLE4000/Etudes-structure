@@ -46,19 +46,24 @@ def show():
             st.markdown(href, unsafe_allow_html=True)
 
     # 📂 Ouvrir / recharger un fichier JSON
+        # 📂 Ouvrir / recharger un fichier JSON
     with btn4:
-        if st.session_state.uploaded_file is None:
-            uploaded = st.file_uploader("Ouvrir", type=["json"], label_visibility="collapsed", key="btn_open_real")
+        if "ouvrir_fichier" not in st.session_state:
+            st.session_state.ouvrir_fichier = False
+
+        if st.button("📂 Ouvrir", use_container_width=True, key="btn_open_trigger"):
+            st.session_state.ouvrir_fichier = True
+            st.rerun()
+
+        if st.session_state.ouvrir_fichier:
+            uploaded = st.file_uploader("Choisir un fichier JSON", type=["json"], label_visibility="collapsed", key="btn_open_uploader")
             if uploaded is not None:
                 contenu = json.load(uploaded)
                 for k, v in contenu.items():
                     st.session_state[k] = v
-                st.session_state.uploaded_file = uploaded
+                st.session_state.ouvrir_fichier = False
                 st.rerun()
-        else:
-            if st.button("📂 Recharger un fichier", key="btn_open_reset"):
-                st.session_state.uploaded_file = None
-                st.rerun()
+
 
     # 📄 Générer PDF
     with btn5:
