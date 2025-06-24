@@ -17,11 +17,17 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ✅ Récupération de la page depuis les paramètres URL
+# ✅ Récupération de la page depuis l’URL ou session_state
 if "page" in st.query_params:
     st.session_state.page = st.query_params["page"]
 elif "page" not in st.session_state:
     st.session_state.page = "Accueil"
+
+# ✅ Vérifie si un retour à l’accueil a été demandé
+if st.session_state.get("retour_accueil_demande", False):
+    st.session_state.page = "Accueil"
+    st.session_state.retour_accueil_demande = False
+    st.rerun()  # relance l’app avec la bonne page
 
 # 🧠 Dictionnaire des pages
 pages = {
