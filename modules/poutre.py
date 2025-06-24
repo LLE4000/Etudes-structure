@@ -19,10 +19,9 @@ def show():
     # 🏠 Accueil
     with btn1:
         if st.button("🏠 Accueil", use_container_width=True):
-            st.session_state.page = "Accueil"
-            st.rerun()
-            return
-    
+        st.session_state.retour_accueil_demande = True
+        st.experimental_rerun()
+
     # 🔄 Réinitialiser
     with btn2:
         if st.button("🔄 Réinitialiser", use_container_width=True):
