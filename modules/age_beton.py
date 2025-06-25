@@ -2,9 +2,24 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
+# ✅ Initialisation session et gestion retour accueil
+if "retour_accueil_demande" not in st.session_state:
+    st.session_state.retour_accueil_demande = False
+
+if st.session_state.retour_accueil_demande:
+    st.session_state.page = "Accueil"
+    st.session_state.retour_accueil_demande = False
+    st.rerun()
+
 def show():
-    # Titre de la page
-    st.title("Évolution de la résistance du béton selon l'EC2")
+    # 🏠 Bouton accueil
+    btn1, btn2 = st.columns([1, 5])
+    with btn1:
+        if st.button("🏠 Accueil", use_container_width=True, key="btn_accueil_age"):
+            st.session_state.retour_accueil_demande = True
+            st.rerun()
+    with btn2:
+        st.markdown("### Évolution de la résistance du béton selon l'EC2")
 
     # Saisie du type de béton
     fck_label = st.selectbox("Choisir un type de béton (valeur de fck en MPa) :", [25, 30, 35, 40, 45, 50])
@@ -26,11 +41,11 @@ def show():
     # (Optionnel) Entrée de résistance mesurée
     res_mesuree = st.number_input("Résistance mesurée (en MPa, optionnel) :", min_value=0.0, value=0.0, step=0.1)
 
+    # Calculs
     t = np.linspace(1, 50, 500)
     beta_cc = np.exp(s * (1 - np.sqrt(28 / t)))
     fck_t = np.where(t < 28, beta_cc * fcm - 8, fck)
 
-    # Calcul du point sélectionné
     t_val = t_selected
     if t_val < 28:
         beta_val = np.exp(s * (1 - np.sqrt(28 / t_val)))
@@ -38,7 +53,6 @@ def show():
     else:
         fck_val = fck
 
-    # Estimation de l'âge si une résistance est donnée
     estimated_age = None
     if res_mesuree > 0 and res_mesuree < fck:
         beta_m = (res_mesuree + 8) / fcm
@@ -47,7 +61,7 @@ def show():
         if sqrt_val > 0:
             estimated_age = 28 / (sqrt_val ** 2)
 
-    # Tracé du graphique
+    # Tracé
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(t, fck_t, label="fck(t)", linewidth=2)
     ax.axvline(x=t_val, color='red', linestyle='--', label=f"Jour sélectionné : {t_val} j")
@@ -64,7 +78,7 @@ def show():
     ax.legend()
     st.pyplot(fig)
 
-    # Résumé numérique
+    # Résumé
     st.markdown("### Résultats :")
     st.write(f"**fck =** {fck} MPa")
     st.write(f"**fcm =** {fcm} MPa")
