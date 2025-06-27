@@ -27,7 +27,7 @@ def show():
     beton_tools = [
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
         {"image": "Logo_dalle.png", "label": "Dalle", "page": "Dalle"},
-        {"image": "Logo_age.png", "label": "Age beton", "page": "Age_beton"},
+        {"image": "Logo_age.png", "label": "Age beton", "page": "Age béton"},
         {"image": "Logo_poutre.png", "label": "Tableau armatures", "page": "Tableau armatures"},
         
     ]
@@ -37,7 +37,7 @@ def show():
 
     # Outils acier
     acier_tools = [
-        {"image": "Logo_poutre.png", "label": "Profilé métallique", "page": "Profil métallique"},
+        {"image": "Logo_poutre.png", "label": "Profilé métallique", "page": "Profilé métallique"},
         {"image": "Logo_poutre.png", "label": "Choix profilé", "page": "Choix profilé"},
         {"image": "Logo_poutre.png", "label": "Flambement", "page": "Flambement"},
         {"image": "Logo_poutre.png", "label": "Tableau profilés", "page": "Tableau profilés"},
