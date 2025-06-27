@@ -37,6 +37,19 @@ def calcul_contraintes(profile, M, V, fyk):
         "ratio_eq": ratio_eq
     }
 
+def dessiner_profil(h, b, tf, tw):
+    fig, ax = plt.subplots(figsize=(2, 4))
+    # Corps
+    ax.add_patch(plt.Rectangle((-(tw/2), tf), tw, h - 2*tf, color='lightgray'))
+    # Ailes
+    ax.add_patch(plt.Rectangle((-b/2, 0), b, tf, color='gray'))
+    ax.add_patch(plt.Rectangle((-b/2, h - tf), b, tf, color='gray'))
+    ax.set_xlim(-b, b)
+    ax.set_ylim(0, h)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    return fig
+
 def show():
     st.title("Choix de profilé métallique optimisé")
     profiles = load_profiles()
@@ -48,7 +61,11 @@ def show():
         st.header("Entrée des données")
         M = st.number_input("Moment fléchissant M [kN·m]", min_value=0.0, step=0.1)
         V = st.number_input("Effort tranchant V [kN]", min_value=0.0, step=0.1)
-        fyk = st.selectbox("Acier", {"S235": 235, "S275": 275, "S355": 355})
+
+        acier_options = {"S235": 235, "S275": 275, "S355": 355}
+        acier_choisi = st.selectbox("Acier", list(acier_options.keys()))
+        fyk = acier_options[acier_choisi]
+
         inertie_min = st.number_input("Inertie minimale Iv (cm4) [optionnel]", min_value=0.0, value=0.0)
 
         st.header("Filtrage par famille")
@@ -96,6 +113,16 @@ def show():
 
             st.markdown(f"### {profil_choisi} ({prof_data['type']})")
             st.write(pd.DataFrame({"Valeur": prof_data}).T)
+
+            # Dessin du profilé
+            st.subheader("Section du profilé")
+            fig = dessiner_profil(
+                h=prof_data['h'],
+                b=prof_data['b'],
+                tf=prof_data['tf'],
+                tw=prof_data['tw']
+            )
+            st.pyplot(fig)
 
             st.subheader("Formules de dimensionnement")
             st.latex(r"\sigma_n = \frac{M \times 10^6}{W_{el}} = \frac{%s \times 10^6}{%s} = %.2f\ \text{MPa}" % (M, prof_data['Wel'] * 1e3, contraintes['sigma_n']))
