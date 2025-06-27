@@ -4,18 +4,17 @@ import math
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Charger les données JSON de profilés
 @st.cache_data
 def load_profiles():
-    with open("profiles_test.json") as f:
+    with open("profiles_complet.json") as f:
         return json.load(f)
 
 def calcul_contraintes(profile, M, V, fyk):
     Wel = profile["Wel"] * 1e3  # cm3 -> mm3
     Avz = profile["Avz"] * 1e2  # cm2 -> mm2
 
-    sigma_n = M * 1e6 / Wel  # N/mm2
-    tau = V * 1e3 / Avz       # N/mm2
+    sigma_n = M * 1e6 / Wel
+    tau = V * 1e3 / Avz
     sigma_eq = math.sqrt(sigma_n**2 + 3 * tau**2)
 
     sigma_lim = fyk / 1.5
@@ -27,9 +26,7 @@ def calcul_contraintes(profile, M, V, fyk):
     ratio_eq = sigma_eq / sigma_eq_lim
 
     return {
-        "sigma_n": sigma_n,
-        "tau": tau,
-        "sigma_eq": sigma_eq,
+        "sigma_n": sigma_n, "tau": tau, "sigma_eq": sigma_eq,
         "max_ratio": max(ratio_sigma, ratio_tau, ratio_eq),
         "contrainte_limite": sigma_lim,
         "ratio_sigma": ratio_sigma,
@@ -37,15 +34,33 @@ def calcul_contraintes(profile, M, V, fyk):
         "ratio_eq": ratio_eq
     }
 
-def dessiner_profil(h, b, tf, tw):
-    fig, ax = plt.subplots(figsize=(2, 4))
-    # Corps
-    ax.add_patch(plt.Rectangle((-(tw/2), tf), tw, h - 2*tf, color='lightgray'))
-    # Ailes
-    ax.add_patch(plt.Rectangle((-b/2, 0), b, tf, color='gray'))
-    ax.add_patch(plt.Rectangle((-b/2, h - tf), b, tf, color='gray'))
+def dessiner_profile(profile):
+    h, b, tf, tw, r = profile["h"], profile["b"], profile["tf"], profile["tw"], profile["r"]
+    fig, ax = plt.subplots(figsize=(3, 3))
+
+    # Mise à l'échelle
+    h /= 2
+    b /= 2
+    tf /= 2
+    tw /= 2
+    r /= 2
+
+    # Ailes sup & inf
+    ax.add_patch(plt.Rectangle((-b/2, h/2 - tf), b, tf, color='gray'))
+    ax.add_patch(plt.Rectangle((-b/2, -h/2), b, tf, color='gray'))
+
+    # Âme
+    ax.add_patch(plt.Rectangle((-tw/2, -h/2 + tf), tw, h - 2*tf, color='lightgray'))
+
+    # Côtes
+    ax.annotate(f"h = {h*2:.0f} mm", xy=(0, 0), xytext=(b, 0), ha='left', va='center', arrowprops=dict(arrowstyle='<->'))
+    ax.annotate(f"b = {b*2:.0f} mm", xy=(0, h/2+tf), xytext=(0, h/2+tf+5), ha='center')
+    ax.annotate(f"tw = {tw*2:.1f}", xy=(0, -h/4), xytext=(b/1.5, -h/4), ha='left')
+    ax.annotate(f"tf = {tf*2:.1f}", xy=(b/4, h/2 - tf/2), xytext=(b/1.5, h/2 - tf/2), ha='left')
+    ax.annotate(f"r = {r*2:.1f}", xy=(-b/2 + r, -h/2 + tf + r), xytext=(-b, -h/2), fontsize=8)
+
     ax.set_xlim(-b, b)
-    ax.set_ylim(0, h)
+    ax.set_ylim(-h, h)
     ax.set_aspect('equal')
     ax.axis('off')
     return fig
@@ -54,21 +69,23 @@ def show():
     st.title("Choix de profilé métallique optimisé")
     profiles = load_profiles()
 
-    # 📉 Interface en deux colonnes
     col_gauche, col_droite = st.columns([1, 1.3])
 
     with col_gauche:
-        st.header("Entrée des données")
-        M = st.number_input("Moment fléchissant M [kN·m]", min_value=0.0, step=0.1)
-        V = st.number_input("Effort tranchant V [kN]", min_value=0.0, step=0.1)
+        st.markdown("### Entrée des données")
+        c1, c2, c3 = st.columns([1, 1, 1])
+        with c1:
+            M = st.number_input("Moment fléchissant M [kN·m]", min_value=0.0, step=0.1, key="moment")
+        with c2:
+            V = st.number_input("Effort tranchant V [kN]", min_value=0.0, step=0.1, key="effort")
+        with c3:
+            acier_dict = {"S235": 235, "S275": 275, "S355": 355}
+            acier_nom = st.selectbox("Acier", list(acier_dict.keys()))
+            fyk = acier_dict[acier_nom]
 
-        acier_options = {"S235": 235, "S275": 275, "S355": 355}
-        acier_choisi = st.selectbox("Acier", list(acier_options.keys()))
-        fyk = acier_options[acier_choisi]
+        inertie_min = st.number_input("Inertie minimale Iv (cm4) [optionnel]", min_value=0.0, value=0.0, format="%.1f", key="inertie")
 
-        inertie_min = st.number_input("Inertie minimale Iv (cm4) [optionnel]", min_value=0.0, value=0.0)
-
-        st.header("Filtrage par famille")
+        st.markdown("### Filtrage par famille")
         familles = sorted(set(p["type"] for p in profiles.values()))
         familles_choisies = st.multiselect("Types de profilés à inclure :", familles, default=familles)
 
@@ -86,9 +103,9 @@ def show():
                     "Avz": prof["Avz"],
                     "Iv": prof["Iv"],
                     "Poids [kg/m]": prof["G"],
-                    "\u03c3 [MPa]": round(contraintes["sigma_n"], 2),
-                    "\u03c4 [MPa]": round(contraintes["tau"], 2),
-                    "\u03c3eq [MPa]": round(contraintes["sigma_eq"], 2),
+                    "σ [MPa]": round(contraintes["sigma_n"], 2),
+                    "τ [MPa]": round(contraintes["tau"], 2),
+                    "σeq [MPa]": round(contraintes["sigma_eq"], 2),
                     "Utilisation": round(contraintes["max_ratio"] * 100, 1)
                 })
 
@@ -96,39 +113,11 @@ def show():
             df_sorted = df.sort_values("Utilisation")
             meilleur = df_sorted[df_sorted["Utilisation"] <= 100].iloc[-1] if any(df_sorted["Utilisation"] <= 100) else df_sorted.iloc[0]
 
-            st.subheader("\U0001f4cc Profilé optimal :")
+            st.markdown("### 📌 Profilé optimal :")
             profil_choisi = st.selectbox("Sélectionner un profilé :", df_sorted["Profilé"].tolist(), index=df_sorted["Profilé"].tolist().index(meilleur["Profilé"]))
 
             if st.checkbox("Afficher tous les profilés ✔/❌"):
                 def surligner(row):
                     couleur = "background-color: #d4f7d4" if row["Utilisation"] <= 100 else "background-color: #f7c6c6"
                     return [couleur] * len(row)
-                st.dataframe(df_sorted.style.apply(surligner, axis=1))
-
-    with col_droite:
-        if M > 0 and V > 0:
-            st.header("Visualisation du profilé")
-            prof_data = profiles[profil_choisi]
-            contraintes = calcul_contraintes(prof_data, M, V, fyk)
-
-            st.markdown(f"### {profil_choisi} ({prof_data['type']})")
-            st.write(pd.DataFrame({"Valeur": prof_data}).T)
-
-            # Dessin du profilé
-            st.subheader("Section du profilé")
-            fig = dessiner_profil(
-                h=prof_data['h'],
-                b=prof_data['b'],
-                tf=prof_data['tf'],
-                tw=prof_data['tw']
-            )
-            st.pyplot(fig)
-
-            st.subheader("Formules de dimensionnement")
-            st.latex(r"\sigma_n = \frac{M \times 10^6}{W_{el}} = \frac{%s \times 10^6}{%s} = %.2f\ \text{MPa}" % (M, prof_data['Wel'] * 1e3, contraintes['sigma_n']))
-            st.latex(r"\tau = \frac{V \times 10^3}{A_{vz}} = \frac{%s \times 10^3}{%s} = %.2f\ \text{MPa}" % (V, prof_data['Avz'] * 1e2, contraintes['tau']))
-            st.latex(r"\sigma_{eq} = \sqrt{\sigma_n^2 + 3\tau^2} = %.2f\ \text{MPa}" % contraintes['sigma_eq'])
-            st.latex(r"\text{Utilisation} = \frac{\sigma_{eq}}{f_{yk}/1.5} = \frac{%.2f}{%.2f} = %.1f\%%" % (
-                contraintes['sigma_eq'], fyk/1.5, contraintes['max_ratio'] * 100))
-        else:
-            st.info("Veuillez entrer M et V pour afficher les résultats.")
+                st.dataframe(df_sorted.st_
