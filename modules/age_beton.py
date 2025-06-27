@@ -1,3 +1,18 @@
+import streamlit as st
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ✅ Initialisation session et gestion retour accueil
+if "uploaded_file" not in st.session_state:
+    st.session_state.uploaded_file = None
+if "retour_accueil_demande" not in st.session_state:
+    st.session_state.retour_accueil_demande = False
+
+if st.session_state.retour_accueil_demande:
+    st.session_state.page = "Accueil"
+    st.session_state.retour_accueil_demande = False
+    st.rerun()
+
 def show():
     # 🏠 Bouton accueil
     btn1, btn2 = st.columns([1, 5])
