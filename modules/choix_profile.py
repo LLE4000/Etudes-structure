@@ -49,7 +49,6 @@ st.pyplot(fig)
 
 def show(): st.title("Choix de profilé métallique optimisé") profiles = load_profiles()
 
-# Entrée des données sur une ligne
 col1, col2, col3 = st.columns(3)
 with col1:
     M = st.number_input("Moment fléchissant M [kN·m]", min_value=0.0, step=0.1)
