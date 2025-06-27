@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ✅ Initialisation session et gestion retour accueil
+if "uploaded_file" not in st.session_state:
+    st.session_state.uploaded_file = None
 if "retour_accueil_demande" not in st.session_state:
     st.session_state.retour_accueil_demande = False
 
