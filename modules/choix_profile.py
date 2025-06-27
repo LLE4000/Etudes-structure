@@ -1,4 +1,8 @@
-import streamlit as st import json import math import pandas as pd import matplotlib.pyplot as plt
+import streamlit as st 
+import json 
+import math 
+import pandas as pd 
+import matplotlib.pyplot as plt
 
 @st.cache_data def load_profiles(): with open("/mnt/data/profiles_test.json") as f: return json.load(f)
 
