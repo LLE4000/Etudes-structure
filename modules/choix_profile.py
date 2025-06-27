@@ -8,7 +8,7 @@ import os
 @st.cache_data
 def load_profiles():
     json_path = os.path.join(os.path.dirname(__file__), "profiles_test.json")
-    with open(json_path, "r", encoding="utf-8") as f:
+    with open("profiles_test.json", encoding="utf-8") as f:
         return json.load(f)
 
 def calcul_contraintes(profile, M, V, fyk):
