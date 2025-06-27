@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 @st.cache_data
 def load_profiles():
-    with open("/mnt/data/profiles_complet.json") as f:
+    with open("/mnt/data/profiles_test.json") as f:
         return json.load(f)
 
 def calcul_contraintes(profile, M, V, fyk):
