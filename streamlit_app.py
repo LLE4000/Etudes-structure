@@ -8,7 +8,7 @@ from modules import (
     age_beton,
     choix_profile,
     flambement,
-    tableau_profiles
+    tableau_profiles,
 )
 
 st.set_page_config(
