@@ -22,20 +22,19 @@ def show():
         st.session_state.retour_accueil_demande = True
         st.rerun()
 
-    # Colonnes interface
+    # Interface
     col_gauche, col_droite = st.columns([1, 1.2])
 
     with col_gauche:
-        # Choix béton selon norme
+        # Choix du béton
         beton_label = st.selectbox("Choisir un type de béton :", [
             "C20/25", "C25/30", "C30/37", "C35/45", "C40/50", "C45/55", "C50/60"
         ])
-
         try:
             fck = int(beton_label.split("/")[0].replace("C", ""))
             fcm = fck + 8
-        except Exception as e:
-            st.error("Erreur dans la lecture du type de béton. Format attendu : C30/37")
+        except Exception:
+            st.error("Erreur dans le type de béton.")
             return
 
         # Ciment
@@ -43,25 +42,26 @@ def show():
         s_dict = {"prise rapide": 0.20, "prise normale": 0.25, "prise lente": 0.38}
         s = s_dict[type_ciment]
 
-        # Âge béton
+        # Âge
         t_selected = st.slider("Âge du béton (en jours)", 0, 28, 14)
 
-        # Résistance mesurée (optionnel)
+        # Mesure
         res_mesuree = st.number_input("Résistance mesurée (en MPa, optionnel) :", min_value=0.0, value=0.0, step=0.1)
 
-    # Courbe fck(t)
+    # Calculs
     t = np.linspace(1, 40, 500)
     beta_cc = np.exp(s * (1 - np.sqrt(28 / t)))
     fck_t = np.where(t < 28, beta_cc * fcm - 8, fck)
 
-    # Résistance à t sélectionné
-    if t_selected < 28:
+    if t_selected == 0:
+        fck_val = 0
+        beta_display = 0
+    else:
         beta_val = np.exp(s * (1 - np.sqrt(28 / t_selected)))
         fck_val = beta_val * fcm - 8
-    else:
-        fck_val = fck
+        beta_display = beta_val
 
-    # Estimation âge si mesure fournie
+    # Estimation
     estimated_age = None
     if 0 < res_mesuree < fck:
         beta_m = (res_mesuree + 8) / fcm
@@ -70,16 +70,20 @@ def show():
         if sqrt_val > 0:
             estimated_age = 28 / (sqrt_val ** 2)
 
-    # 📈 Graphe
+    # Graphe
     with col_droite:
         fig, ax = plt.subplots(figsize=(8, 5))
         ax.plot(t, fck_t, label="fck(t)", linewidth=2)
-        ax.axvline(x=t_selected, color='red', linestyle='--', label=f"Jour sélectionné : {t_selected} j")
-        ax.axhline(y=fck_val, color='green', linestyle='--', label=f"Résistance à {t_selected} j : {fck_val:.2f} MPa")
+
+        if t_selected > 0:
+            ax.plot([t_selected, t_selected], [0, fck_val], 'r--', label=f"Jour sélectionné : {t_selected} j")
+            ax.plot([0, t_selected], [fck_val, fck_val], 'g--', label=f"Résistance à {t_selected} j : {fck_val:.2f} MPa")
+
         if res_mesuree > 0:
             ax.axhline(y=res_mesuree, color='orange', linestyle=':', label=f"Mesure : {res_mesuree} MPa")
             if estimated_age:
-                ax.axvline(x=estimated_age, color='purple', linestyle=':', label=f"Âge estimé : {estimated_age:.1f} j")
+                est_fck = np.interp(estimated_age, t, fck_t)
+                ax.plot([estimated_age, estimated_age], [0, est_fck], 'purple', linestyle=':', label=f"Âge estimé : {estimated_age:.1f} j")
 
         ax.set_xlabel("Âge du béton (jours)")
         ax.set_ylabel("Résistance à la compression fck(t) [MPa]")
@@ -88,20 +92,20 @@ def show():
         ax.legend()
         st.pyplot(fig)
 
-    # Résultats + formule
+    # Résultats
     with col_gauche:
         st.markdown("### Résultats :")
-        st.markdown(f"🧱 Avec un béton **{beton_label}**, sa résistance est estimée à **{fck_val:.2f} MPa** après **{t_selected} jours**.")
-        st.markdown("📊 Comparaison : C20/25 < C25/30 < C30/37 < C35/45 < C40/50 < C45/55 < C50/60")
+        st.markdown(f"Avec un béton **{beton_label}**, sa résistance est estimée à **{fck_val:.2f} MPa** après **{t_selected} jours**.")
+        st.markdown("Comparaison : C20/25 < C25/30 < C30/37 < C35/45 < C40/50 < C45/55 < C50/60")
 
-        # Formules
+        # Formule
         st.markdown("### Formule utilisée :")
-        st.latex(r"f_{ck}(t) = \beta_{cc}(t) \cdot f_{cm} - 8")
-        st.latex(fr"\beta_{{cc}}(t) = \exp\left({s} \cdot \left(1 - \sqrt{{28 / {t_selected}}}\right)\right)")
-        beta_display = np.exp(s * (1 - np.sqrt(28 / t_selected)))
-        st.latex(fr"f_{{ck}}({t_selected}) = {beta_display:.3f} \cdot {fcm} - 8 = {fck_val:.2f} \ \text{{MPa}}")
+        if t_selected == 0:
+            st.latex(r"f_{ck}(0) = 0 \ \text{MPa} \quad (\text{à t = 0, aucune résistance})")
+        else:
+            st.latex(r"f_{ck}(t) = \beta_{cc}(t) \cdot f_{cm} - 8")
+            st.latex(fr"\beta_{{cc}}(t) = \exp\left({s} \cdot \left(1 - \sqrt{{28 / {t_selected}}}\right)\right)")
+            st.latex(fr"f_{{ck}}({t_selected}) = {beta_display:.3f} \cdot {fcm} - 8 = {fck_val:.2f} \ \text{{MPa}}")
 
         if estimated_age:
-            st.success(f"🟣 Âge estimé du béton pour {res_mesuree:.2f} MPa : **{estimated_age:.1f} jours**")
-        elif res_mesuree > 0:
-            st.warning("⚠️ La résistance mesurée dépasse fck → âge > 28 jours ou incohérence.")
+            st.success(f"🟣 Âge estimé du béton pou
