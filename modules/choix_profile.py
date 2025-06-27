@@ -3,10 +3,12 @@ import json
 import math
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
 @st.cache_data
 def load_profiles():
-    with open("/mnt/data/profiles_test.json") as f:
+    json_path = os.path.join(os.path.dirname(__file__), "profiles_test.json")
+    with open(json_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def calcul_contraintes(profile, M, V, fyk):
@@ -37,8 +39,8 @@ def calcul_contraintes(profile, M, V, fyk):
     }
 
 def dessiner_profile(profile):
-    h, b, tf, tw, r = profile["h"], profile["b"], profile["tf"], profile["tw"], profile["r"]
-    scale = 0.5  # réduction à 50%
+    h, b, tf, tw, r = profile["h"], profile["b"], profile["tf"], profile["tw"], profile.get("r", 0)
+    scale = 0.5
     h *= scale
     b *= scale
     tf *= scale
@@ -48,17 +50,16 @@ def dessiner_profile(profile):
     fig, ax = plt.subplots(figsize=(4, 6))
     ax.set_aspect('equal')
 
-    # Contour du profilé H
-    ax.add_patch(plt.Rectangle((-b/2, h/2 - tf), b, tf, color="gray"))  # semelle sup
-    ax.add_patch(plt.Rectangle((-tw/2, -h/2 + tf), tw, h - 2*tf, color="lightgray"))  # âme
-    ax.add_patch(plt.Rectangle((-b/2, -h/2), b, tf, color="gray"))  # semelle inf
+    ax.add_patch(plt.Rectangle((-b/2, h/2 - tf), b, tf, color="gray"))
+    ax.add_patch(plt.Rectangle((-tw/2, -h/2 + tf), tw, h - 2*tf, color="lightgray"))
+    ax.add_patch(plt.Rectangle((-b/2, -h/2), b, tf, color="gray"))
 
-    # Cotes
     ax.annotate(f"h = {profile['h']:.0f} mm", xy=(b/2 + 5, 0), va="center")
     ax.annotate(f"b = {profile['b']:.0f} mm", xy=(0, -h/2 - 5), ha="center")
     ax.annotate(f"tf = {profile['tf']:.1f} mm", xy=(-b/2 + tf/2, h/2 + 2), ha="center")
     ax.annotate(f"tw = {profile['tw']:.1f} mm", xy=(0, 0), ha="center", va="center", color="black")
-    ax.annotate(f"r = {profile['r']:.1f} mm", xy=(b/2 - r, -h/2 + tf + r), color="blue", ha="right")
+    if r > 0:
+        ax.annotate(f"r = {profile['r']:.1f} mm", xy=(b/2 - r, -h/2 + tf + r), color="blue", ha="right")
 
     ax.set_xlim(-b, b)
     ax.set_ylim(-h, h)
