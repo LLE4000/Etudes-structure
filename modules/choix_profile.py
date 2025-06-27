@@ -75,7 +75,9 @@ def show():
         st.markdown("### Entrée des données")
         M = st.number_input("Moment fléchissant M [kN·m]", min_value=0.0, step=0.1)
         V = st.number_input("Effort tranchant V [kN]", min_value=0.0, step=0.1)
-        fyk = st.selectbox("Acier", {"S235": 235, "S275": 275, "S355": 355})
+        acier_options = {"S235": 235, "S275": 275, "S355": 355}
+        acier_nom = st.selectbox("Acier", list(acier_options.keys()))
+        fyk = acier_options[acier_nom]
     with col_famille:
         inertie_min = st.number_input("Inertie minimale Iv (cm4) [optionnel]", min_value=0.0, value=0.0)
 
