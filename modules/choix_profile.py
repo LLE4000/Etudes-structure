@@ -114,18 +114,3 @@ def show():
             st.latex(r"\tau = \frac{V \times 10^3}{A_{vz}} = \frac{%.1f \times 10^3}{%.1f} = %.2f" % (V, profil["Avz"], tau))
             st.latex(r"\sigma_{eq} = \sqrt{\sigma_n^2 + 3 \tau^2} = %.2f" % sigma_eq)
             st.latex(r"\text{Utilisation} = \frac{\sigma_{eq}}{f_{yk}/1.5} = \frac{%.2f}{%.1f} = %.1f%%" % (sigma_eq, fyk / 1.5, utilisation * 100))
-
-
-Voici le fichier choix_profile.py entièrement corrigé et mis en forme :
-
-Imports correctement séparés en haut
-
-Affichage des données optimisé (colonnes inutiles supprimées, pourcentages arrondis, unités claires)
-
-Disposition gauche/droite respectée
-
-Mise en page des tableaux et formules améliorée
-
-
-Tu peux maintenant copier-coller ce fichier directement dans ton dépôt GitHub ou ton projet Streamlit. Si tu veux également le fichier streamlit_app.py corrigé, je te l’envoie aussi.
-
