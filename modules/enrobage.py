@@ -1,8 +1,6 @@
 import streamlit as st
 import math
 
-st.set_page_config(page_title="Calcul de l'enrobage", layout="wide")
-
 # --- Données pour le tableau d'exposition ---
 exposition_classes = [
     "X0", "XC1", "XC2/XC3", "XC4", "XD1/XS1", "XD2/XS2", "XD3/XS3"
