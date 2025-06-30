@@ -7,21 +7,24 @@ def show():
 
     def render_section(titre_html, tools):
         st.markdown(titre_html, unsafe_allow_html=True)
-        cols = st.columns(4)
 
-        for i, tool in enumerate(tools):
-            with cols[i]:
-                st.markdown(
-                    f"""
-                    <div style="text-align: center;">
-                        <a href="/?page={tool['page']}" target="_self" style="text-decoration: none;">
-                            <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px; margin-bottom: 8px;" />
-                            <div style="font-size: 16px; color: black;">{tool['label']}</div>
-                        </a>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+        for i in range(0, len(tools), 4):
+            ligne_tools = tools[i:i+4]
+            cols = st.columns(len(ligne_tools))
+
+            for j, tool in enumerate(ligne_tools):
+                with cols[j]:
+                    st.markdown(
+                        f"""
+                        <div style="text-align: center;">
+                            <a href="/?page={tool['page']}" target="_self" style="text-decoration: none;">
+                                <img src="{base_url}/{tool['image']}" style="width: 120px; height: 120px; margin-bottom: 8px;" />
+                                <div style="font-size: 16px; color: black;">{tool['label']}</div>
+                            </a>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
 
     # Outils béton
     beton_tools = [
@@ -30,7 +33,6 @@ def show():
         {"image": "Logo_age.png", "label": "Age beton", "page": "Age béton"},
         {"image": "Logo_poutre.png", "label": "Tableau armatures", "page": "Tableau armatures"},
         {"image": "Logo_poutre.png", "label": "Enrobage", "page": "Enrobage"},
-        
     ]
     render_section("## 🧱 <span style='color:#FF6F61;'>Béton</span>", beton_tools)
 
