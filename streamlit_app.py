@@ -9,7 +9,7 @@ from modules import (
     choix_profile,
     flambement,
     tableau_profiles,
-    enrobage,
+    enrobage
 )
 
 st.set_page_config(
