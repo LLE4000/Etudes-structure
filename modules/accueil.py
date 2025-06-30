@@ -29,6 +29,7 @@ def show():
         {"image": "Logo_dalle.png", "label": "Dalle", "page": "Dalle"},
         {"image": "Logo_age.png", "label": "Age beton", "page": "Age béton"},
         {"image": "Logo_poutre.png", "label": "Tableau armatures", "page": "Tableau armatures"},
+        {"image": "Logo_poutre.png", "label": "Enrobage", "page": "Enrobage"},
         
     ]
     render_section("## 🧱 <span style='color:#FF6F61;'>Béton</span>", beton_tools)
