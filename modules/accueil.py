@@ -5,11 +5,11 @@ def show():
 
     base_url = "https://raw.githubusercontent.com/LLE4000/Etudes-structure/main/assets"
 
-    def render_section(titre_html, tools):
+    def render_section(titre_html, tools, cols_per_row=5):
         st.markdown(titre_html, unsafe_allow_html=True)
 
-        for i in range(0, len(tools), 4):
-            ligne_tools = tools[i:i+4]
+        for i in range(0, len(tools), cols_per_row):
+            ligne_tools = tools[i:i+cols_per_row]
             cols = st.columns(len(ligne_tools))
 
             for j, tool in enumerate(ligne_tools):
@@ -26,23 +26,23 @@ def show():
                         unsafe_allow_html=True
                     )
 
-    # Outils béton
+    # Outils béton (avec Enrobage en 4ᵉ position)
     beton_tools = [
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
         {"image": "Logo_dalle.png", "label": "Dalle", "page": "Dalle"},
         {"image": "Logo_age.png", "label": "Age beton", "page": "Age béton"},
-        {"image": "Logo_poutre.png", "label": "Tableau armatures", "page": "Tableau armatures"},
         {"image": "Logo_poutre.png", "label": "Enrobage", "page": "Enrobage"},
+        {"image": "Logo_poutre.png", "label": "Tableau armatures", "page": "Tableau armatures"},
     ]
-    render_section("## 🧱 <span style='color:#FF6F61;'>Béton</span>", beton_tools)
+    render_section("## 🧱 <span style='color:#FF6F61;'>Béton</span>", beton_tools, cols_per_row=5)
 
     st.markdown("---")
 
-    # Outils acier
+    # Outils acier (4 éléments)
     acier_tools = [
         {"image": "Logo_poutre.png", "label": "Profilé métallique", "page": "Profilé métallique"},
         {"image": "Logo_poutre.png", "label": "Choix profilé", "page": "Choix profilé"},
         {"image": "Logo_poutre.png", "label": "Flambement", "page": "Flambement"},
         {"image": "Logo_poutre.png", "label": "Tableau profilés", "page": "Tableau profilés"},
     ]
-    render_section("## 🏗️ <span style='color:#FFA500;'>Acier</span>", acier_tools)
+    render_section("## 🏗️ <span style='color:#FFA500;'>Acier</span>", acier_tools, cols_per_row=4)
