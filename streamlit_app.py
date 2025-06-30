@@ -9,6 +9,7 @@ from modules import (
     choix_profile,
     flambement,
     tableau_profiles,
+    enrobage,
 )
 
 st.set_page_config(
@@ -39,7 +40,8 @@ pages = {
     "Age béton": age_beton,
     "Choix profilé": choix_profile,
     "Flambement": flambement,
-    "Tableau profilés": tableau_profiles
+    "Tableau profilés": tableau_profiles,
+    "Enrobage" : enrobage
 }
 
 # ▶️ Affichage de la page sélectionnée
