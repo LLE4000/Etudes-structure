@@ -38,7 +38,7 @@ pages = {
     "Profilé métallique": profile_metal,
     "Tableau armatures": tableau_armatures,
     "Age béton": age_beton,
-    "Choix profilé": choix_profile,
+    "Choix profilé": choix_profils,
     "Flambement": flambement,
     "Tableau profilés": tableau_profiles,
     "Enrobage" : enrobage
