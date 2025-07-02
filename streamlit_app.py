@@ -6,7 +6,7 @@ from modules import (
     profile_metal,
     tableau_armatures,
     age_beton,
-    choix_profile,
+    choix_profils,
     flambement,
     tableau_profiles,
     enrobage,
