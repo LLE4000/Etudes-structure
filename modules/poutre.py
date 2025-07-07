@@ -271,7 +271,7 @@ def show():
             with col1:
                 n_etriers = st.selectbox("Nbr. étriers", list(range(1, 5)), key="n_etriers")
             with col2:
-                d_etrier = st.selectbox("Ø étriers (mm)", [6, 8, 10], key="ø_etrier")
+                d_etrier = st.selectbox("Ø étriers (mm)", [6, 8, 10, 12], key="ø_etrier")
             with col3:
                 pas_choisi = st.number_input("Pas choisi (cm)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier")
         
@@ -323,7 +323,7 @@ def show():
             with col_r1:
                 n_etriers_r = st.selectbox("Nbr. étriers (réduit)", list(range(1, 5)), key="n_etriers_r")
             with col_r2:
-                d_etrier_r = st.selectbox("Ø étriers (mm) (réduit)", [6, 8, 10], key="ø_etrier_r")
+                d_etrier_r = st.selectbox("Ø étriers (mm) (réduit)", [6, 8, 10, 12], key="ø_etrier_r")
             with col_r3:
                 pas_choisi_r = st.number_input("Pas choisi (cm) (réduit)", min_value=5.0, max_value=50.0, step=0.5, key="pas_etrier_r")
         
