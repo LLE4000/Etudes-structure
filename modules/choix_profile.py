@@ -110,7 +110,24 @@ def show():
 
             st.subheader("Formules de dimensionnement")
             sigma_n, tau, sigma_eq, utilisation = calcul_contraintes(profil, M, V, fyk)
-            st.latex(r"\sigma_n = \frac{M \times 10^6}{W_{el}} = \frac{%.1f \times 10^6}{%.1f} = %.2f" % (M, profil["Wel"] * 1e3, sigma_n))
-            st.latex(r"\tau = \frac{V \times 10^3}{A_{vz}} = \frac{%.1f \times 10^3}{%.1f} = %.2f" % (V, profil["Avz"], tau))
-            st.latex(r"\sigma_{eq} = \sqrt{\sigma_n^2 + 3 \tau^2} = %.2f" % sigma_eq)
-            st.latex(r"\text{Utilisation} = \frac{\sigma_{eq}}{f_{yk}/1.5} = \frac{%.2f}{%.1f} = %.1f%%" % (sigma_eq, fyk / 1.5, utilisation * 100))
+
+            st.latex(
+                r"\sigma_n = \frac{M \times 10^6}{W_{el} \times 10^3} = \frac{%.1f \times 10^6}{%.1f \times 10^3} = %.2f"
+                % (M, profil["Wel"], sigma_n)
+            )
+            
+            st.latex(
+                r"\tau = \frac{V \times 10^3}{A_{vz} \times 10^2} = \frac{%.1f \times 10^3}{%.1f \times 10^2} = %.2f"
+                % (V, profil["Avz"], tau)
+            )
+            
+            st.latex(
+                r"\sigma_{eq} = \sqrt{\sigma_n^2 + 3\tau^2} = \sqrt{%.2f^2 + 3 \times %.2f^2} = %.2f"
+                % (sigma_n, tau, sigma_eq)
+            )
+            
+            st.latex(
+                r"\text{Utilisation} = \frac{\sigma_{eq}}{f_{yk}/1.5} = \frac{%.2f}{%.1f} = %.1f%%"
+                % (sigma_eq, fyk / 1.5, utilisation * 100)
+            )
+
