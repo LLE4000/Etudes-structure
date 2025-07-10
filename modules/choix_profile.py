@@ -25,7 +25,7 @@ def load_profiles():
             }
         except Exception as e:
             print(f"Erreur dans le profil {name} : {e}")
-    print(f"\u2714\ufe0f {len(clean_profiles)} profils chargés depuis le JSON.")
+    print(f"✔️ {len(clean_profiles)} profils chargés depuis le JSON.")
     return clean_profiles
 
 def calcul_contraintes(profile, M, V, fyk):
@@ -49,6 +49,8 @@ def show():
     profiles = load_profiles()
 
     familles_disponibles = sorted(set(p["type"] for p in profiles.values()))
+    default_familles = ["HEA"] if "HEA" in familles_disponibles else familles_disponibles[:1]
+    familles_choisies = st.multiselect("Types de profilés à inclure :", options=familles_disponibles, default=default_familles)
 
     col_left, col_right = st.columns([1.3, 1])
 
@@ -63,9 +65,6 @@ def show():
         fyk = int(acier[1:])
 
         Iv_min = st.number_input("Iv min. [cm⁴] [optionnel]", min_value=0.0, step=100.0)
-
-        st.subheader("Filtrage par famille")
-        familles_choisies = st.multiselect("Types de profilés à inclure :", options=familles_disponibles, default=["HEA"])
 
         profils_filtres = {
             k: v for k, v in profiles.items()
@@ -91,7 +90,7 @@ def show():
             })
 
         donnees = sorted(donnees, key=lambda x: x["Utilisation"]) if donnees else []
-        print(f"\u2714\ufe0f {len(donnees)} profils conservés après filtrage.")
+        print(f"✔️ {len(donnees)} profils conservés après filtrage.")
 
         st.subheader("📌 Profilé optimal :")
         if donnees:
@@ -118,18 +117,18 @@ def show():
             sigma_n, tau, sigma_eq, utilisation = calcul_contraintes(profil, M, V, fyk)
 
             st.latex(
-                r"\sigma_n = \frac{M \times 10^6}{W_{el} \times 10^3} = \frac{%.1f \times 10^6}{%.1f \times 10^3} = %.2f"
+                r"\sigma_n = rac{M 	imes 10^6}{W_{el} 	imes 10^3} = rac{%.1f 	imes 10^6}{%.1f 	imes 10^3} = %.2f"
                 % (M, profil["Wel"], sigma_n)
             )
             st.latex(
-                r"\tau = \frac{V \times 10^3}{A_{vz} \times 10^2} = \frac{%.1f \times 10^3}{%.1f \times 10^2} = %.2f"
+                r"	au = rac{V 	imes 10^3}{A_{vz} 	imes 10^2} = rac{%.1f 	imes 10^3}{%.1f 	imes 10^2} = %.2f"
                 % (V, profil["Avz"], tau)
             )
             st.latex(
-                r"\sigma_{eq} = \sqrt{\sigma_n^2 + 3\tau^2} = \sqrt{%.2f^2 + 3 \times %.2f^2} = %.2f"
+                r"\sigma_{eq} = \sqrt{\sigma_n^2 + 3	au^2} = \sqrt{%.2f^2 + 3 	imes %.2f^2} = %.2f"
                 % (sigma_n, tau, sigma_eq)
             )
             st.latex(
-                r"\text{Utilisation} = \frac{\sigma_{eq}}{f_{yk}/1.5} = \frac{%.2f}{%.1f} = %.1f%%"
+                r"	ext{Utilisation} = rac{\sigma_{eq}}{f_{yk}/1.5} = rac{%.2f}{%.1f} = %.1f%%"
                 % (sigma_eq, fyk / 1.5, utilisation * 100)
             )
