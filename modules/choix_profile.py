@@ -28,10 +28,10 @@ def load_profiles():
     return clean_profiles
 
 def calcul_contraintes(profile, M, V, fyk):
-    Wel = profile["Wel"] * 1e3
-    Avz = profile["Avz"]
-    sigma_n = M * 1e6 / Wel
-    tau = V * 1e3 / Avz
+    Wel = profile["Wel"] * 1e3  # cm³ → mm³
+    Avz = profile["Avz"] * 1e2  # cm² → mm²
+    sigma_n = M * 1e6 / Wel     # en MPa
+    tau = V * 1e3 / Avz         # en MPa
     sigma_eq = math.sqrt(sigma_n**2 + 3 * tau**2)
     utilisation = sigma_eq / (fyk / 1.5)
     return sigma_n, tau, sigma_eq, utilisation
@@ -115,19 +115,15 @@ def show():
                 r"\sigma_n = \frac{M \times 10^6}{W_{el} \times 10^3} = \frac{%.1f \times 10^6}{%.1f \times 10^3} = %.2f"
                 % (M, profil["Wel"], sigma_n)
             )
-            
             st.latex(
                 r"\tau = \frac{V \times 10^3}{A_{vz} \times 10^2} = \frac{%.1f \times 10^3}{%.1f \times 10^2} = %.2f"
                 % (V, profil["Avz"], tau)
             )
-            
             st.latex(
                 r"\sigma_{eq} = \sqrt{\sigma_n^2 + 3\tau^2} = \sqrt{%.2f^2 + 3 \times %.2f^2} = %.2f"
                 % (sigma_n, tau, sigma_eq)
             )
-            
             st.latex(
                 r"\text{Utilisation} = \frac{\sigma_{eq}}{f_{yk}/1.5} = \frac{%.2f}{%.1f} = %.1f%%"
                 % (sigma_eq, fyk / 1.5, utilisation * 100)
             )
-
