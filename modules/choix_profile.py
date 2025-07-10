@@ -25,7 +25,7 @@ def load_profiles():
             }
         except Exception as e:
             print(f"Erreur dans le profil {name} : {e}")
-    print(f"✔️ {len(clean_profiles)} profils chargés depuis le JSON.")
+    print(f"\u2714\ufe0f {len(clean_profiles)} profils chargés depuis le JSON.")
     return clean_profiles
 
 def calcul_contraintes(profile, M, V, fyk):
@@ -48,6 +48,8 @@ def show():
     st.title("Choix de profilé métallique optimisé")
     profiles = load_profiles()
 
+    familles_disponibles = sorted(set(p["type"] for p in profiles.values()))
+
     col_left, col_right = st.columns([1.3, 1])
 
     with col_left:
@@ -63,8 +65,7 @@ def show():
         Iv_min = st.number_input("Iv min. [cm⁴] [optionnel]", min_value=0.0, step=100.0)
 
         st.subheader("Filtrage par famille")
-        familles = ["HEA", "HEB", "HEM", "IPE", "IPN"]
-        familles_choisies = st.multiselect("Types de profilés à inclure :", options=familles, default=["HEA"])
+        familles_choisies = st.multiselect("Types de profilés à inclure :", options=familles_disponibles, default=["HEA"])
 
         profils_filtres = {
             k: v for k, v in profiles.items()
@@ -73,7 +74,6 @@ def show():
 
         donnees = []
         for nom, prof in profils_filtres.items():
-            # Vérification Iv
             if prof["Iv"] is not None and Iv_min > 0 and prof["Iv"] < Iv_min:
                 continue
             sigma_n, tau, sigma_eq, utilisation = calcul_contraintes(prof, M, V, fyk)
@@ -91,7 +91,7 @@ def show():
             })
 
         donnees = sorted(donnees, key=lambda x: x["Utilisation"]) if donnees else []
-        print(f"✔️ {len(donnees)} profils conservés après filtrage.")
+        print(f"\u2714\ufe0f {len(donnees)} profils conservés après filtrage.")
 
         st.subheader("📌 Profilé optimal :")
         if donnees:
