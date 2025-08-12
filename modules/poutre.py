@@ -7,40 +7,41 @@ import base64
 
 # ========= Utilitaires UI =========
 
-def bloc_resultat(titre: str, contenu_html: str, etat: str = "ok"):
+C_COULEURS = {
+    "ok":   "#e6ffe6",  # vert pâle
+    "warn": "#fffbe6",  # jaune pâle
+    "nok":  "#ffe6e6",  # rouge pâle
+}
+C_ICONES = {
+    "ok":   "✅",
+    "warn": "⚠️",
+    "nok":  "❌",
+}
+
+def open_bloc(titre: str, etat: str = "ok"):
     """
-    Affiche un bloc avec fond coloré, titre à gauche, icône à droite.
-    etat ∈ {"ok", "warn", "nok"}
-    contenu_html peut contenir du HTML simple (br, strong, etc.)
+    Ouvre un bloc visuel (fond coloré + bord + header) et laisse le <div> ouvert.
+    Appeler ensuite close_bloc() pour fermer le <div>.
     """
-    couleurs = {
-        "ok":   "#e6ffe6",  # vert pâle
-        "warn": "#fffbe6",  # jaune pâle
-        "nok":  "#ffe6e6",  # rouge pâle
-    }
-    icones = {
-        "ok":   "✅",
-        "warn": "⚠️",
-        "nok":  "❌",
-    }
     st.markdown(
         f"""
         <div style="
-            background-color:{couleurs.get(etat, '#f6f6f6')};
-            padding:12px 14px;
+            background-color:{C_COULEURS.get(etat, '#f6f6f6')};
+            padding:12px 14px 10px 14px;
             border-radius:10px;
             border:1px solid #d9d9d9;
             margin:10px 0 12px 0;
         ">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
             <div style="font-weight:700;">{titre}</div>
-            <div style="font-size:20px;line-height:1;">{icones.get(etat,'')}</div>
+            <div style="font-size:20px;line-height:1;">{C_ICONES.get(etat,'')}</div>
           </div>
-          <div style="margin-top:8px; line-height:1.5;">{contenu_html}</div>
-        </div>
         """,
         unsafe_allow_html=True
     )
+
+def close_bloc():
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def show():
@@ -113,7 +114,7 @@ def show():
                 M_inf=st.session_state.get("M_inf", 0),
                 M_sup=st.session_state.get("M_sup", 0),
                 V=st.session_state.get("V", 0),
-                V_lim=st.session_state.get("V_lim", 0),  # on garde la clé interne
+                V_lim=st.session_state.get("V_lim", 0),  # clé interne conservée
             )
             with open(fichier_pdf, "rb") as f:
                 st.download_button(
@@ -145,7 +146,6 @@ def show():
             with indice_col:
                 st.text_input("", placeholder="Indice", value="0", key="indice")
         else:
-            # Valeur par défaut pour éviter les None en export
             st.session_state.setdefault("date", datetime.today().strftime("%d/%m/%Y"))
 
         st.markdown("### Caractéristiques de la poutre")
@@ -160,7 +160,7 @@ def show():
         with section_col1:
             b = st.number_input("Larg. [cm]", min_value=5, max_value=1000, value=20, step=5, key="b")
         with section_col2:
-            h = st.number_input("Haut. [cm]", min_value=5, max_value=1000, value=35, step=5, key="h")
+            h = st.number_input("Haut. [cm]", min_value=5, max_value=1000, value=40, step=5, key="h")
         with section_col3:
             enrobage = st.number_input("Enrob. (cm)", min_value=0.0, max_value=100.0, value=5.0, step=0.5, key="enrobage")
 
@@ -186,46 +186,46 @@ def show():
             V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0, key="V")
             v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="ajouter_effort_reduit")
             if v_sup:
-                # ✅ IMPORTANT : ne pas écrire dans st.session_state["V_lim"] ici
                 V_lim = st.number_input("Effort tranchant réduit V_réduit (kN)", 0.0, step=10.0, key="V_lim")
             else:
                 V_lim = 0.0
-                # Nettoyage immédiat pour éviter une ancienne valeur résiduelle
                 if "V_lim" in st.session_state:
                     del st.session_state["V_lim"]
 
-        # Nettoyage des clés si décoché (sécurisant)
+        # Nettoyage résiduel
         if not m_sup and "M_sup" in st.session_state:
             del st.session_state["M_sup"]
 
     # ---------- COLONNE DROITE ----------
     with result_col_droite:
-        st.markdown("### Dimensionnement", unsafe_allow_html=True)
+        st.markdown("### Dimensionnement")
 
         # ---- Vérification de la hauteur ----
         M_max = max(M_inf, M_sup)
         d_calcule = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10  # cm
         etat_hauteur = "ok" if d_calcule + enrobage <= h else "nok"
-        bloc_resultat(
-            "Vérification de la hauteur",
-            f"**h,min** = {d_calcule:.1f} cm<br>"
-            f"h,min + enrobage = {d_calcule + enrobage:.1f} cm ≤ h = {h} cm",
-            etat=etat_hauteur
+        open_bloc("Vérification de la hauteur", etat_hauteur)
+        st.markdown(
+            f"**h,min** = {d_calcule:.1f} cm  \n"
+            f"h,min + enrobage = {d_calcule + enrobage:.1f} cm ≤ h = {h} cm"
         )
+        close_bloc()
 
         # Données section
         d_utile = h - enrobage  # cm
-        As_inf = (M_inf * 1e6) / (fyd * 0.9 * d_utile * 10)
         As_min = 0.0013 * b * h * 1e2
         As_max = 0.04 * b * h * 1e2
 
         # ---- Armatures inférieures ----
-        col_top_1, col_top_2, col_top_3 = st.columns(3)
-        with col_top_1:
+        As_inf = (M_inf * 1e6) / (fyd * 0.9 * d_utile * 10)
+        As_inf_bloc_ok = False  # sera mis à jour après saisies
+        open_bloc("Armatures inférieures", "ok")  # état ajusté après calcul
+        col_ai1, col_ai2, col_ai3 = st.columns(3)
+        with col_ai1:
             st.markdown(f"**Aₛ,inf = {As_inf:.0f} mm²**")
-        with col_top_2:
+        with col_ai2:
             st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
-        with col_top_3:
+        with col_ai3:
             st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
 
         c1, c2, c3 = st.columns([3, 3, 4])
@@ -235,23 +235,26 @@ def show():
             diam_barres = st.selectbox("Ø (mm)", [6, 8, 10, 12, 16, 20, 25, 32, 40], index=4, key="ø_as_inf")
         with c3:
             As_choisi = n_barres * (math.pi * (diam_barres / 2) ** 2)
-            ok1 = (As_min <= As_choisi <= As_max) and (As_choisi >= As_inf)
-            etat_as_inf = "ok" if ok1 else "nok"
-            bloc_resultat(
-                "Armatures inférieures",
-                f"Section choisie = <strong>{As_choisi:.0f} mm²</strong>",
-                etat=etat_as_inf
-            )
+            As_inf_bloc_ok = (As_min <= As_choisi <= As_max) and (As_choisi >= As_inf)
+            st.markdown(f"Section choisie = **{As_choisi:.0f} mm²**")
+        close_bloc()
+        # mettre à jour visuel du bandeau (simple: si NOK, on réaffiche la bordure en rouge)
+        if not As_inf_bloc_ok:
+            open_bloc("Armatures inférieures", "nok")
+            st.markdown("**Section non conforme.**")
+            close_bloc()
 
         # ---- Armatures supérieures (si M_sup) ----
         if m_sup:
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d_utile * 10)
-            col_s1, col_s2, col_s3 = st.columns(3)
-            with col_s1:
+            As_sup_bloc_ok = False
+            open_bloc("Armatures supérieures", "ok")
+            col_as1, col_as2, col_as3 = st.columns(3)
+            with col_as1:
                 st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
-            with col_s2:
+            with col_as2:
                 st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
-            with col_s3:
+            with col_as3:
                 st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
 
             cs1, cs2, cs3 = st.columns([3, 3, 4])
@@ -261,13 +264,13 @@ def show():
                 d_sup = st.selectbox("Ø (mm) (sup.)", [6, 8, 10, 12, 16, 20, 25, 32, 40], index=4, key="ø_as_sup")
             with cs3:
                 As_sup_choisi = n_sup * (math.pi * (d_sup / 2) ** 2)
-                ok2 = (As_min <= As_sup_choisi <= As_max) and (As_sup_choisi >= As_sup)
-                etat_as_sup = "ok" if ok2 else "nok"
-                bloc_resultat(
-                    "Armatures supérieures",
-                    f"Section choisie = <strong>{As_sup_choisi:.0f} mm²</strong>",
-                    etat=etat_as_sup
-                )
+                As_sup_bloc_ok = (As_min <= As_sup_choisi <= As_max) and (As_sup_choisi >= As_sup)
+                st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²**")
+            close_bloc()
+            if not As_sup_bloc_ok:
+                open_bloc("Armatures supérieures", "nok")
+                st.markdown("**Section non conforme.**")
+                close_bloc()
 
         # ---- Effort tranchant (standard) ----
         tau_1 = 0.016 * fck_cube / 1.05
@@ -290,13 +293,12 @@ def show():
                 besoin, etat_tau = "Pas acceptable", "nok"
                 tau_lim_aff, nom_lim = tau_4, "τ_adm_IV"
 
-            bloc_resultat(
-                "Vérification de l'effort tranchant",
-                f"τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin}",
-                etat=etat_tau
-            )
+            open_bloc("Vérification de l'effort tranchant", etat_tau)
+            st.markdown(f"τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin}")
+            close_bloc()
 
             # Détermination des étriers
+            open_bloc("Détermination des étriers", "ok")
             col1, col2, col3 = st.columns(3)
             with col1:
                 n_etriers = st.number_input("Nbr. étriers", min_value=1, max_value=8, value=1, step=1, key="n_etriers")
@@ -316,12 +318,15 @@ def show():
             else:
                 etat_pas = "nok"
 
-            bloc_resultat(
-                "Détermination des étriers",
-                f"Pas théorique = <strong>{pas_theorique:.1f} cm</strong> — "
-                f"Pas choisi = <strong>{pas_choisi:.1f} cm</strong>",
-                etat=etat_pas
+            st.markdown(
+                f"**Pas théorique = {pas_theorique:.1f} cm — Pas choisi = {pas_choisi:.1f} cm**"
             )
+            close_bloc()
+            # bandeau d’état du pas (affichage synthèse)
+            if etat_pas != "ok":
+                open_bloc("Détermination des étriers — synthèse", etat_pas)
+                st.markdown("Ajuster le pas choisi ou la géométrie des étriers.")
+                close_bloc()
 
         # ---- Effort tranchant réduit (si activé) ----
         if v_sup and V_lim > 0:
@@ -340,12 +345,11 @@ def show():
                 besoin_r, etat_r = "Pas acceptable", "nok"
                 tau_lim_aff_r, nom_lim_r = tau_4, "τ_adm_IV"
 
-            bloc_resultat(
-                "Vérification de l'effort tranchant réduit",
-                f"τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r}",
-                etat=etat_r
-            )
+            open_bloc("Vérification de l'effort tranchant réduit", etat_r)
+            st.markdown(f"τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_aff_r:.2f} N/mm² → {besoin_r}")
+            close_bloc()
 
+            open_bloc("Détermination des étriers réduits", "ok")
             col_r1, col_r2, col_r3 = st.columns(3)
             with col_r1:
                 n_etriers_r = st.number_input("Nbr. étriers (réduit)", min_value=1, max_value=8, value=1, step=1, key="n_etriers_r")
@@ -365,9 +369,11 @@ def show():
             else:
                 etat_pas_r = "nok"
 
-            bloc_resultat(
-                "Détermination des étriers réduits",
-                f"Pas théorique = <strong>{pas_theorique_r:.1f} cm</strong> — "
-                f"Pas choisi = <strong>{pas_choisi_r:.1f} cm</strong>",
-                etat=etat_pas_r
+            st.markdown(
+                f"**Pas théorique = {pas_theorique_r:.1f} cm — Pas choisi = {pas_choisi_r:.1f} cm**"
             )
+            close_bloc()
+            if etat_pas_r != "ok":
+                open_bloc("Détermination des étriers réduits — synthèse", etat_pas_r)
+                st.markdown("Ajuster le pas choisi ou la géométrie des étriers.")
+                close_bloc()
