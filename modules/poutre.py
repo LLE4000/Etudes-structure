@@ -196,56 +196,73 @@ def show():
         As_min  = 0.0013 * b * h * 1e2
         As_max  = 0.04   * b * h * 1e2
 
-        # ---- Armatures inférieures (bloc unique) ----
-        As_inf        = (M_inf * 1e6) / (fyd * 0.9 * d_utile * 10)
-        diam_opts     = [6, 8, 10, 12, 16, 20, 25, 32, 40]
-        n_inf_cur     = st.session_state.get("n_as_inf", 2)
-        diam_inf_cur  = st.session_state.get("ø_as_inf", 16)
+        # --- Armatures inférieures ---
+        As_inf = (M_inf * 1e6) / (fyd * 0.9 * d_utile * 10)
+        diam_opts = [6, 8, 10, 12, 16, 20, 25, 32, 40]
+        n_inf_cur = st.session_state.get("n_as_inf", 2)
+        diam_inf_cur = st.session_state.get("ø_as_inf", 16)
         As_inf_choisi = n_inf_cur * (math.pi * (diam_inf_cur/2)**2)
-        ok_inf        = (As_min <= As_inf_choisi <= As_max) and (As_inf_choisi >= As_inf)
-        etat_inf      = "ok" if ok_inf else "nok"
-
+        ok_inf = (As_min <= As_inf_choisi <= As_max) and (As_inf_choisi >= As_inf)
+        etat_inf = "ok" if ok_inf else "nok"
+        
         open_bloc("Armatures inférieures", etat_inf)
         ca1, ca2, ca3 = st.columns(3)
         with ca1: st.markdown(f"**Aₛ,inf = {As_inf:.0f} mm²**")
         with ca2: st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
         with ca3: st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
-
-        cbi, cdi, csi = st.columns([3, 3, 4])
-        with cbi:
-            st.number_input("Nb barres", min_value=1, max_value=50, value=n_inf_cur, step=1, key="n_as_inf")
-        with cdi:
-            st.selectbox("Ø (mm)", diam_opts, index=diam_opts.index(diam_inf_cur), key="ø_as_inf")
-        with csi:
-            # recompute with possibly updated session values (on next rerun couleur s'ajuste)
-            As_inf_choisi = st.session_state.get("n_as_inf", n_inf_cur) * (math.pi * (st.session_state.get("ø_as_inf", diam_inf_cur)/2)**2)
-            st.markdown(f"Section choisie = **{As_inf_choisi:.0f} mm²**")
+        
+        row1_c1, row1_c2, row1_c3 = st.columns([3, 3, 2])
+        with row1_c1:
+            st.number_input("Nb barres", min_value=1, max_value=50,
+                            value=n_inf_cur, step=1, key="n_as_inf")
+        with row1_c2:
+            st.selectbox("Ø (mm)", diam_opts,
+                         index=diam_opts.index(diam_inf_cur), key="ø_as_inf")
+        # valeur recalculée après widgets
+        n_val = st.session_state.get("n_as_inf", n_inf_cur)
+        d_val = st.session_state.get("ø_as_inf", diam_inf_cur)
+        As_inf_choisi = n_val * (math.pi * (d_val/2)**2)
+        with row1_c3:
+            st.markdown(
+                f"<div style='margin-top:30px;font-weight:600;white-space:nowrap;'>( {As_inf_choisi:.0f} mm² )</div>",
+                unsafe_allow_html=True
+        )
         close_bloc()
+
 
         # ---- Armatures supérieures (si M_sup) : bloc unique ----
         if m_sup:
-            As_sup        = (M_sup * 1e6) / (fyd * 0.9 * d_utile * 10)
-            n_sup_cur     = st.session_state.get("n_as_sup", 2)
-            diam_sup_cur  = st.session_state.get("ø_as_sup", 16)
+            As_sup = (M_sup * 1e6) / (fyd * 0.9 * d_utile * 10)
+            n_sup_cur = st.session_state.get("n_as_sup", 2)
+            diam_sup_cur = st.session_state.get("ø_as_sup", 16)
             As_sup_choisi = n_sup_cur * (math.pi * (diam_sup_cur/2)**2)
-            ok_sup        = (As_min <= As_sup_choisi <= As_max) and (As_sup_choisi >= As_sup)
-            etat_sup      = "ok" if ok_sup else "nok"
-
+            ok_sup = (As_min <= As_sup_choisi <= As_max) and (As_sup_choisi >= As_sup)
+            etat_sup = "ok" if ok_sup else "nok"
+        
             open_bloc("Armatures supérieures", etat_sup)
             cs1, cs2, cs3 = st.columns(3)
             with cs1: st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
             with cs2: st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
             with cs3: st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
-
-            cbs, cds, css = st.columns([3, 3, 4])
-            with cbs:
-                st.number_input("Nb barres (sup.)", min_value=1, max_value=50, value=n_sup_cur, step=1, key="n_as_sup")
-            with cds:
-                st.selectbox("Ø (mm) (sup.)", diam_opts, index=diam_opts.index(diam_sup_cur), key="ø_as_sup")
-            with css:
-                As_sup_choisi = st.session_state.get("n_as_sup", n_sup_cur) * (math.pi * (st.session_state.get("ø_as_sup", diam_sup_cur)/2)**2)
-                st.markdown(f"Section choisie = **{As_sup_choisi:.0f} mm²**")
+        
+            row2_c1, row2_c2, row2_c3 = st.columns([3, 3, 2])
+            with row2_c1:
+                st.number_input("Nb barres (sup.)", min_value=1, max_value=50,
+                                value=n_sup_cur, step=1, key="n_as_sup")
+            with row2_c2:
+                st.selectbox("Ø (mm) (sup.)", diam_opts,
+                             index=diam_opts.index(diam_sup_cur), key="ø_as_sup")
+            # recalcul après widgets
+            n_s = st.session_state.get("n_as_sup", n_sup_cur)
+            d_s = st.session_state.get("ø_as_sup", diam_sup_cur)
+            As_sup_choisi = n_s * (math.pi * (d_s/2)**2)
+            with row2_c3:
+                st.markdown(
+                    f"<div style='margin-top:30px;font-weight:600;white-space:nowrap;'>( {As_sup_choisi:.0f} mm² )</div>",
+                    unsafe_allow_html=True
+                )
             close_bloc()
+
 
         # ---- Vérification effort tranchant ----
         tau_1 = 0.016 * fck_cube / 1.05
