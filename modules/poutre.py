@@ -30,7 +30,7 @@ def bloc_resultat(titre: str, contenu_html: str, etat: str = "ok"):
             padding:12px 14px;
             border-radius:10px;
             border:1px solid #d9d9d9;
-            margin: 10px 0 12px 0;
+            margin:10px 0 12px 0;
         ">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
             <div style="font-weight:700;">{titre}</div>
@@ -152,11 +152,9 @@ def show():
         beton_col, acier_col = st.columns(2)
         with beton_col:
             beton = st.selectbox("Classe de béton", list(beton_data.keys()),
-                                 index=min(2, len(beton_data) - 1))
-            st.session_state["beton"] = beton
+                                 index=min(2, len(beton_data) - 1), key="beton")
         with acier_col:
-            fyk = st.selectbox("Qualité d'acier [N/mm²]", ["400", "500"], index=1)
-            st.session_state["fyk"] = fyk
+            fyk = st.selectbox("Qualité d'acier [N/mm²]", ["400", "500"], index=1, key="fyk")
 
         section_col1, section_col2, section_col3 = st.columns(3)
         with section_col1:
@@ -188,22 +186,21 @@ def show():
             V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0, key="V")
             v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="ajouter_effort_reduit")
             if v_sup:
-                st.session_state["V_lim"] = st.number_input("Effort tranchant réduit V_réduit (kN)",
-                                                            0.0, step=10.0, key="V_lim")
-                V_lim = st.session_state["V_lim"]
+                # ✅ IMPORTANT : ne pas écrire dans st.session_state["V_lim"] ici
+                V_lim = st.number_input("Effort tranchant réduit V_réduit (kN)", 0.0, step=10.0, key="V_lim")
             else:
                 V_lim = 0.0
+                # Nettoyage immédiat pour éviter une ancienne valeur résiduelle
+                if "V_lim" in st.session_state:
+                    del st.session_state["V_lim"]
 
-        # Nettoyage des clés si décoché
+        # Nettoyage des clés si décoché (sécurisant)
         if not m_sup and "M_sup" in st.session_state:
             del st.session_state["M_sup"]
-        if not v_sup and "V_lim" in st.session_state:
-            del st.session_state["V_lim"]
 
     # ---------- COLONNE DROITE ----------
     with result_col_droite:
-        st.markdown("### Dimensionnement  <span style='opacity:0.5'>↺</span>",
-                    unsafe_allow_html=True)
+        st.markdown("### Dimensionnement", unsafe_allow_html=True)
 
         # ---- Vérification de la hauteur ----
         M_max = max(M_inf, M_sup)
@@ -217,8 +214,8 @@ def show():
         )
 
         # Données section
-        d = h - enrobage  # cm
-        As_inf = (M_inf * 1e6) / (fyd * 0.9 * d * 10)
+        d_utile = h - enrobage  # cm
+        As_inf = (M_inf * 1e6) / (fyd * 0.9 * d_utile * 10)
         As_min = 0.0013 * b * h * 1e2
         As_max = 0.04 * b * h * 1e2
 
@@ -248,7 +245,7 @@ def show():
 
         # ---- Armatures supérieures (si M_sup) ----
         if m_sup:
-            As_sup = (M_sup * 1e6) / (fyd * 0.9 * d * 10)
+            As_sup = (M_sup * 1e6) / (fyd * 0.9 * d_utile * 10)
             col_s1, col_s2, col_s3 = st.columns(3)
             with col_s1:
                 st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
@@ -281,22 +278,22 @@ def show():
             tau = V * 1e3 / (0.75 * b * h * 100)
 
             if tau <= tau_1:
-                besoin, icone_etat = "Pas besoin d’étriers", "ok"
+                besoin, etat_tau = "Pas besoin d’étriers", "ok"
                 tau_lim_aff, nom_lim = tau_1, "τ_adm_I"
             elif tau <= tau_2:
-                besoin, icone_etat = "Besoin d’étriers", "ok"
+                besoin, etat_tau = "Besoin d’étriers", "ok"
                 tau_lim_aff, nom_lim = tau_2, "τ_adm_II"
             elif tau <= tau_4:
-                besoin, icone_etat = "Besoin de barres inclinées et d’étriers", "warn"
+                besoin, etat_tau = "Besoin de barres inclinées et d’étriers", "warn"
                 tau_lim_aff, nom_lim = tau_4, "τ_adm_IV"
             else:
-                besoin, icone_etat = "Pas acceptable", "nok"
+                besoin, etat_tau = "Pas acceptable", "nok"
                 tau_lim_aff, nom_lim = tau_4, "τ_adm_IV"
 
             bloc_resultat(
                 "Vérification de l'effort tranchant",
                 f"τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim_aff:.2f} N/mm² → {besoin}",
-                etat=icone_etat
+                etat=etat_tau
             )
 
             # Détermination des étriers
@@ -310,7 +307,7 @@ def show():
                                              step=0.5, key="pas_etrier")
 
             Ast_etrier = n_etriers * math.pi * (d_etrier / 2) ** 2
-            pas_theorique = Ast_etrier * fyd * d * 10 / (10 * V * 1e3)
+            pas_theorique = Ast_etrier * fyd * d_utile * 10 / (10 * V * 1e3)
 
             if pas_choisi <= pas_theorique:
                 etat_pas = "ok"
@@ -321,7 +318,8 @@ def show():
 
             bloc_resultat(
                 "Détermination des étriers",
-                f"Pas théorique = <strong>{pas_theorique:.1f} cm</strong> — Pas choisi = <strong>{pas_choisi:.1f} cm</strong>",
+                f"Pas théorique = <strong>{pas_theorique:.1f} cm</strong> — "
+                f"Pas choisi = <strong>{pas_choisi:.1f} cm</strong>",
                 etat=etat_pas
             )
 
@@ -358,7 +356,7 @@ def show():
                                                step=0.5, key="pas_etrier_r")
 
             Ast_etrier_r = n_etriers_r * math.pi * (d_etrier_r / 2) ** 2
-            pas_theorique_r = Ast_etrier_r * fyd * d * 10 / (10 * V_lim * 1e3)
+            pas_theorique_r = Ast_etrier_r * fyd * d_utile * 10 / (10 * V_lim * 1e3)
 
             if pas_choisi_r <= pas_theorique_r:
                 etat_pas_r = "ok"
@@ -369,6 +367,7 @@ def show():
 
             bloc_resultat(
                 "Détermination des étriers réduits",
-                f"Pas théorique = <strong>{pas_theorique_r:.1f} cm</strong> — Pas choisi = <strong>{pas_choisi_r:.1f} cm</strong>",
+                f"Pas théorique = <strong>{pas_theorique_r:.1f} cm</strong> — "
+                f"Pas choisi = <strong>{pas_choisi_r:.1f} cm</strong>",
                 etat=etat_pas_r
             )
