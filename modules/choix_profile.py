@@ -57,7 +57,6 @@ def calcul_contraintes(profile, M, V, fyk):
 
 
 def fmt_no_trailing_zeros(x, digits=3):
-    """Retourne une str sans zéros inutiles après la virgule."""
     if x is None:
         return "—"
     try:
@@ -69,25 +68,18 @@ def fmt_no_trailing_zeros(x, digits=3):
     return f"{xf:.{digits}f}".rstrip("0").rstrip(".")
 
 
-def latex_left(math_block: str):
-    """Affiche un bloc LaTeX aligné à gauche."""
-    st.markdown(f"<div style='text-align:left'>{math_block}</div>", unsafe_allow_html=True)
-
-
 # ---------- UI ----------
 def show():
     st.title("Choix de profilé métallique optimisé")
 
     profiles = load_profiles()
     if not profiles:
-        st.error("Aucun profil n’a été chargé. Vérifie que **profiles_test.json** existe et contient des clés "
-                 "`h`, `Wel`, `Avz`, `masse/Poids`, `type`.")
+        st.error("Aucun profil n’a été chargé. Vérifie que **profiles_test.json** existe et contient `h`, `Wel`, `Avz`, `masse/Poids`, `type`.")
         return
 
     familles_disponibles = sorted({p["type"] for p in profiles.values()})
     default_familles = ["HEA"] if "HEA" in familles_disponibles else familles_disponibles[:1]
 
-    # Deux colonnes : le multiselect reste dans la colonne gauche
     col_left, col_right = st.columns([1.35, 1.0])
 
     with col_left:
@@ -95,15 +87,14 @@ def show():
             "Types de profilés à inclure :", options=familles_disponibles, default=default_familles
         )
 
-        col1, col2, col3 = st.columns(3)
-        with col1:
+        c1, c2, c3 = st.columns(3)
+        with c1:
             M = st.number_input("M [kN·m]", min_value=0.0, step=10.0, value=0.0)
-        with col2:
+        with c2:
             V = st.number_input("V [kN]", min_value=0.0, step=10.0, value=0.0)
-        with col3:
+        with c3:
             acier = st.selectbox("Acier", ["S235", "S275", "S355"], index=0)
         fyk = int(acier[1:])
-
         Iv_min = st.number_input("Iv min. [cm⁴] (optionnel)", min_value=0.0, step=100.0, value=0.0)
 
         profils_filtres = (
@@ -111,7 +102,6 @@ def show():
             if familles_choisies else profiles
         )
 
-        # Calculs
         rows = []
         for nom, prof in profils_filtres.items():
             if prof["Iv"] is not None and Iv_min > 0 and prof["Iv"] < Iv_min:
@@ -130,7 +120,6 @@ def show():
                 "σeq [MPa]": sigma_eq,
             })
 
-        # Tri par utilisation (par défaut)
         rows = sorted(rows, key=lambda x: x["Utilisation [%]"]) if rows else []
 
         st.subheader("📌 Profilé optimal :")
@@ -140,7 +129,6 @@ def show():
 
         df = pd.DataFrame(rows).set_index("Profilé")
 
-        # Meilleur ≤100%
         best_name = None
         util_series = df["Utilisation [%]"]
         le100 = util_series <= 100.0
@@ -151,19 +139,17 @@ def show():
         default_idx = noms.index(best_name) if best_name in noms else 0
         nom_selectionne = st.selectbox("Sélectionner un profilé :", options=noms, index=default_idx)
 
-        # Styles: couleurs + formatage (sans zéros inutiles)
         def _row_style(row):
             u = row["Utilisation [%]"]
             if row.name == best_name:
-                color = "#b7f7c1"   # vert soutenu
+                color = "#b7f7c1"
             elif u <= 100:
-                color = "#eafaf0"   # vert pâle
+                color = "#eafaf0"
             else:
-                color = "#ffeaea"   # rouge pâle
+                color = "#ffeaea"
             return [f"background-color: {color}"] * len(row)
 
-        afficher_tous = st.checkbox("Afficher tous les profilés ✓/✗", value=True)
-        if afficher_tous:
+        if st.checkbox("Afficher tous les profilés ✓/✗", value=True):
             st.dataframe(
                 df.style.apply(_row_style, axis=1)
                        .format(lambda v: fmt_no_trailing_zeros(v, digits=3)),
@@ -171,11 +157,10 @@ def show():
             )
 
     with col_right:
-        # Panneau propriétés / formules
         profil = profiles[nom_selectionne]
-        st.markdown(f"### {nom_selectionne}")  # sans type entre parenthèses
+        st.markdown(f"### {nom_selectionne}")
 
-        # Deux petits tableaux côte à côte (4 colonnes au total)
+        # 2 petits tableaux côte à côte SANS titres au-dessus
         c1, c2 = st.columns(2)
 
         dims = [
@@ -194,7 +179,6 @@ def show():
         ]
 
         with c1:
-            st.markdown("**Dimensions**")
             df_dims = pd.DataFrame(
                 {"Dimensions": [d[0] for d in dims],
                  "Valeur": [fmt_no_trailing_zeros(d[1]) for d in dims]}
@@ -202,48 +186,37 @@ def show():
             st.dataframe(df_dims, hide_index=True, use_container_width=True)
 
         with c2:
-            st.markdown("**Propriété**")
             df_props = pd.DataFrame(
                 {"Propriété": [p[0] for p in props],
                  "Valeur": [fmt_no_trailing_zeros(p[1]) for p in props]}
             )
             st.dataframe(df_props, hide_index=True, use_container_width=True)
 
-        # Formules (alignées à gauche)
-        st.subheader("Formules de dimensionnement")
-
+        # Formules rendues comme avant (st.latex)
         sigma_n, tau, sigma_eq, utilisation = calcul_contraintes(profil, M, V, fyk)
 
-        latex_left(
-            r"""$$
-            \sigma_n = \frac{M \times 10^6}{W_{el} \times 10^3}
-            = \frac{""" + f"{M:.1f}" + r""" \times 10^6}{""" + f"{profil['Wel']:.1f}" + r""" \times 10^3}
-            = """ + f"{sigma_n:.2f}" + r"""\ \text{MPa}
-            $$"""
+        st.subheader("Formules de dimensionnement")
+        st.latex(
+            r"\sigma_n = \frac{M \times 10^6}{W_{el} \times 10^3}"
+            rf" = \frac{{{M:.1f} \times 10^6}}{{{profil['Wel']:.1f} \times 10^3}}"
+            rf" = {sigma_n:.2f}\ \text{{MPa}}"
         )
-        latex_left(
-            r"""$$
-            \tau = \frac{V \times 10^3}{A_{vz} \times 10^2}
-            = \frac{""" + f"{V:.1f}" + r""" \times 10^3}{""" + f"{profil['Avz']:.2f}" + r""" \times 10^2}
-            = """ + f"{tau:.2f}" + r"""\ \text{MPa}
-            $$"""
+        st.latex(
+            r"\tau = \frac{V \times 10^3}{A_{vz} \times 10^2}"
+            rf" = \frac{{{V:.1f} \times 10^3}}{{{profil['Avz']:.2f} \times 10^2}}"
+            rf" = {tau:.2f}\ \text{{MPa}}"
         )
-        latex_left(
-            r"""$$
-            \sigma_{eq} = \sqrt{\sigma_n^2 + 3\tau^2}
-            = \sqrt{""" + f"{sigma_n:.2f}" + r"""^2 + 3 \times """ + f"{tau:.2f}" + r"""^2}
-            = """ + f"{sigma_eq:.2f}" + r"""\ \text{MPa}
-            $$"""
+        st.latex(
+            rf"\sigma_{{eq}} = \sqrt{{\sigma_n^2 + 3\tau^2}}"
+            rf" = \sqrt{{{sigma_n:.2f}^2 + 3 \times {tau:.2f}^2}}"
+            rf" = {sigma_eq:.2f}\ \text{{MPa}}"
         )
-        latex_left(
-            r"""$$
-            \text{Utilisation} = \frac{\sigma_{eq}}{f_{yk}/1.5}
-            = \frac{""" + f"{sigma_eq:.2f}" + r"""}{""" + f"{(fyk/1.5):.1f}" + r"""}
-            = """ + f"{utilisation*100:.1f}" + r"""\ \%
-            $$"""
+        st.latex(
+            rf"\text{{Utilisation}} = \frac{{\sigma_{{eq}}}}{{f_{{yk}}/1.5}}"
+            rf" = \frac{{{sigma_eq:.2f}}}{{{(fyk/1.5):.1f}}}"
+            rf" = {utilisation*100:.1f}\ \%"
         )
 
 
-# Lancer la page si utilisée directement
 if __name__ == "__main__":
     show()
