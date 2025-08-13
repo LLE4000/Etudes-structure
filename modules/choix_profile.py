@@ -61,9 +61,13 @@ def fmt_no_trailing_zeros(x, digits=3):
     """Retourne une str sans zéros inutiles après la virgule."""
     if x is None:
         return "—"
-    if isinstance(x, (int,)) or float(x).is_integer():
-        return str(int(round(float(x))))
-    return f"{float(x):.{digits}f}".rstrip("0").rstrip(".")
+    try:
+        xf = float(x)
+    except Exception:
+        return str(x)
+    if xf.is_integer():
+        return str(int(round(xf)))
+    return f"{xf:.{digits}f}".rstrip("0").rstrip(".")
 
 
 # ---------- UI ----------
@@ -113,7 +117,7 @@ def show():
             donnees.append({
                 "Utilisation [%]": round(utilisation * 100, 1),
                 "Profilé": nom,
-                # "type": prof["type"],  # masqué sur tableau => inutile
+                # "type": prof["type"],  # masqué → inutile
                 "h [mm]": int(prof["h"]),
                 "Wel [cm³]": prof["Wel"],
                 "Avz [cm²]": prof["Avz"],
@@ -137,31 +141,30 @@ def show():
 
         # Trouve la ligne ≤100 % la plus proche de 100 %
         best_name = None
-        util = df["Utilisation [%]"]
-        le100 = util <= 100.0
+        util_series = df["Utilisation [%]"]
+        le100 = util_series <= 100.0
         if le100.any():
             # plus proche de 100 % par le bas
-            best_name = (100.0 - util[le100]).idxmin()
+            best_name = (100.0 - util_series[le100]).idxmin()
 
         # Sélecteur avec position par défaut sur le "best" s'il existe
         noms = df.index.tolist()
         default_idx = noms.index(best_name) if best_name in noms else 0
         nom_selectionne = st.selectbox("Sélectionner un profilé :", options=noms, index=default_idx)
 
-        # Styles de lignes: vert soutenu pour best, vert pâle pour ≤100, rouge pâle pour >100
+        # Styles: IMPORTANT -> renvoyer des règles CSS complètes
         def _row_style(row):
             u = row["Utilisation [%]"]
             if row.name == best_name:
-                bg = "#b7f7c1"   # vert soutenu
+                color = "#b7f7c1"   # vert soutenu
             elif u <= 100:
-                bg = "#eafaf0"   # vert pâle
+                color = "#eafaf0"   # vert pâle
             else:
-                bg = "#ffeaea"   # rouge pâle
-            return [bg] * len(row)
+                color = "#ffeaea"   # rouge pâle
+            return [f"background-color: {color}"] * len(row)
 
         afficher_tous = st.checkbox("Afficher tous les profilés ✓/✗", value=True)
         if afficher_tous:
-            # masque la colonne 'type' (déjà retirée), affiche large
             st.dataframe(
                 df.style.apply(_row_style, axis=1),
                 use_container_width=True
@@ -215,4 +218,3 @@ def show():
 # Lancer la page si utilisée directement
 if __name__ == "__main__":
     show()
-
