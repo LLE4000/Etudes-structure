@@ -35,10 +35,10 @@ pages = {
     "Accueil": accueil,
     "Poutre": poutre,
     "Dalle": dalle,
-    "Profilé métallique": profile_metal,
+    "Cornière": corniere,
     "Tableau armatures": tableau_armatures,
     "Age béton": age_beton,
-    "Cornière": corniere,
+    "Choix profilé": choix_profile,
     "Flambement": flambement,
     "Tableau profilés": tableau_profiles,
     "Enrobage" : enrobage
