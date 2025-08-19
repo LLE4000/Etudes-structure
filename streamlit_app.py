@@ -15,34 +15,35 @@ from modules import (
 st.set_page_config(
     page_title="Études Structure",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
 )
 
 # ✅ Récupération de la page depuis l’URL ou session_state
-if "page" in st.query_params:
-    st.session_state.page = st.query_params["page"]
+page_param = st.query_params.get("page") if hasattr(st, "query_params") else None
+if page_param:
+    st.session_state.page = page_param
 elif "page" not in st.session_state:
     st.session_state.page = "Accueil"
 
-# ✅ Vérifie si un retour à l’accueil a été demandé
+# ✅ Retour à l’accueil demandé par une autre page ?
 if st.session_state.get("retour_accueil_demande", False):
     st.session_state.page = "Accueil"
     st.session_state.retour_accueil_demande = False
-    st.rerun()  # relance l’app avec la bonne page
+    st.rerun()
 
-# 🧠 Dictionnaire des pages
+# 🧠 Dictionnaire des pages -> directement les FONCTIONS show()
 pages = {
-    "Accueil": accueil,
-    "Poutre": poutre,
-    "Dalle": dalle,
-    "Cornière": corniere,
-    "Tableau armatures": tableau_armatures,
-    "Age béton": age_beton,
-    "Choix profilé": choix_profile,
-    "Flambement": flambement,
-    "Tableau profilés": tableau_profiles,
-    "Enrobage" : enrobage
+    "Accueil": accueil.show,
+    "Poutre": poutre.show,
+    "Dalle": dalle.show,
+    "Cornière": corniere.show,           # ← appellera modules/corniere.py::show()
+    "Tableau armatures": tableau_armatures.show,
+    "Age béton": age_beton.show,
+    "Choix profilé": choix_profile.show,
+    "Flambement": flambement.show,
+    "Tableau profilés": tableau_profiles.show,
+    "Enrobage": enrobage.show,
 }
 
 # ▶️ Affichage de la page sélectionnée
-pages.get(st.session_state.page, accueil).show()
+pages.get(st.session_state.page, accueil.show)()
