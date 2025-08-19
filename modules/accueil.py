@@ -51,7 +51,7 @@ def show():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Section Béton
+    # ====== LIGNE 1 — Béton ======
     beton_tools = [
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
         {"image": "Logo_dalle.png", "label": "Dalle", "page": "Dalle"},
@@ -61,7 +61,7 @@ def show():
     ]
     render_section("## 🧱 <span style='color:#FF6F61;'>Béton</span>", beton_tools, cols_per_row=5)
 
-    # Section Acier
+    # ====== LIGNE 2 — Acier ======
     acier_tools = [
         {"image": "Logo_poutre.png", "label": "Cornière", "page": "Cornière"},
         {"image": "Logo_poutre.png", "label": "Choix profilé", "page": "Choix profilé"},
@@ -69,3 +69,11 @@ def show():
         {"image": "Logo_poutre.png", "label": "Tableau profilés", "page": "Tableau profilés"},
     ]
     render_section("## 🏗️ <span style='color:#FFA500;'>Acier</span>", acier_tools, cols_per_row=4)
+
+    # ====== LIGNE 3 — Autres ======
+    autres_tools = [
+        {"image": "Logo_poutre.png", "label": "Garde-corps", "page": "Garde-corps"},
+        # Tu pourras ajouter d'autres modules ici
+        # {"image": "Logo_xxx.png", "label": "Autre outil", "page": "Nom de page"},
+    ]
+    render_section("## 🧩 <span style='color:#6C63FF;'>Autres</span>", autres_tools, cols_per_row=4)
