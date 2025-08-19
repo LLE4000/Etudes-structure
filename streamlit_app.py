@@ -10,33 +10,40 @@ from modules import (
     flambement,
     tableau_profiles,
     enrobage,
+    garde_corps,   # ⬅️ IMPORTANT : import du module
 )
 
-st.set_page_config(
-    page_title="Études Structure",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+st.set_page_config(page_title="Études Structure", layout="wide", initial_sidebar_state="collapsed")
 
-# ✅ Récupération de la page depuis l’URL ou session_state
-page_param = st.query_params.get("page") if hasattr(st, "query_params") else None
+# ---- Récupération fiable du paramètre ?page=... (toutes versions de Streamlit)
+page_param = None
+try:
+    qp = st.query_params                               # Streamlit récent
+    page_param = qp.get("page", None)
+except Exception:
+    qp = st.experimental_get_query_params()            # fallback anciens
+    if "page" in qp:
+        v = qp["page"]
+        page_param = v[0] if isinstance(v, list) else v
+
 if page_param:
     st.session_state.page = page_param
 elif "page" not in st.session_state:
     st.session_state.page = "Accueil"
 
-# ✅ Retour à l’accueil demandé par une autre page ?
+# retour à l’accueil demandé ?
 if st.session_state.get("retour_accueil_demande", False):
     st.session_state.page = "Accueil"
     st.session_state.retour_accueil_demande = False
     st.rerun()
 
-# 🧠 Dictionnaire des pages -> directement les FONCTIONS show()
+# ---- Dictionnaire des pages → directement vers les FONCTIONS show()
 pages = {
     "Accueil": accueil.show,
     "Poutre": poutre.show,
     "Dalle": dalle.show,
-    "Cornière": corniere.show,           # ← appellera modules/corniere.py::show()
+    "Cornière": corniere.show,
+    "Garde-corps": garde_corps.show,   # ⬅️ IMPORTANT : clé EXACTE
     "Tableau armatures": tableau_armatures.show,
     "Age béton": age_beton.show,
     "Choix profilé": choix_profile.show,
@@ -45,5 +52,5 @@ pages = {
     "Enrobage": enrobage.show,
 }
 
-# ▶️ Affichage de la page sélectionnée
+# ---- Affichage
 pages.get(st.session_state.page, accueil.show)()
