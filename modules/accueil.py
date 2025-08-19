@@ -63,7 +63,7 @@ def show():
 
     # Section Acier
     acier_tools = [
-        {"image": "Logo_poutre.png", "label": "Profilé métallique", "page": "Profilé métallique"},
+        {"image": "Logo_poutre.png", "label": "Cornière", "page": "Cornière"},
         {"image": "Logo_poutre.png", "label": "Choix profilé", "page": "Choix profilé"},
         {"image": "Logo_poutre.png", "label": "Flambement", "page": "Flambement"},
         {"image": "Logo_poutre.png", "label": "Tableau profilés", "page": "Tableau profilés"},
