@@ -3,7 +3,7 @@ from modules import (
     accueil,
     poutre,
     dalle,
-    profile_metal,
+    corniere,
     tableau_armatures,
     age_beton,
     choix_profile,
@@ -38,7 +38,7 @@ pages = {
     "Profilé métallique": profile_metal,
     "Tableau armatures": tableau_armatures,
     "Age béton": age_beton,
-    "Choix profilé": choix_profile,
+    "Cornière": corniere,
     "Flambement": flambement,
     "Tableau profilés": tableau_profiles,
     "Enrobage" : enrobage
