@@ -40,7 +40,7 @@ def show():
                     st.markdown(
                         f"""
                         <div class="tool-card" style="text-align: center;">
-                            <a href="/?page={tool['page']}" target="_self" style="text-decoration: none;">
+                            <a href="?page={tool['page']}" target="_self" style="text-decoration: none;">
                                 <img src="{base_url}/{tool['image']}" style="width: 100px; height: 100px; margin-bottom: 8px;" />
                                 <div style="font-size: 16px; color: black;">{tool['label']}</div>
                             </a>
@@ -54,8 +54,8 @@ def show():
     # ====== LIGNE 1 — Béton ======
     beton_tools = [
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
-        {"image": "Logo_dalle.png", "label": "Dalle", "page": "Dalle"},
-        {"image": "Logo_age.png", "label": "Age beton", "page": "Age béton"},
+        {"image": "Logo_dalle.png",  "label": "Dalle",  "page": "Dalle"},
+        {"image": "Logo_age.png",    "label": "Age beton", "page": "Age béton"},
         {"image": "Logo_poutre.png", "label": "Enrobage", "page": "Enrobage"},
         {"image": "Logo_poutre.png", "label": "Tableau armatures", "page": "Tableau armatures"},
     ]
@@ -73,7 +73,6 @@ def show():
     # ====== LIGNE 3 — Autres ======
     autres_tools = [
         {"image": "Logo_poutre.png", "label": "Garde-corps", "page": "Garde-corps"},
-        # Tu pourras ajouter d'autres modules ici
-        # {"image": "Logo_xxx.png", "label": "Autre outil", "page": "Nom de page"},
+        {"image": "Logo_poutre.png", "label": "Poutre bois", "page": "Poutre bois"},  # ⬅️ nouveau
     ]
     render_section("## 🧩 <span style='color:#6C63FF;'>Autres</span>", autres_tools, cols_per_row=4)
