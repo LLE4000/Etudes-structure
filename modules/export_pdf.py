@@ -159,7 +159,7 @@ def generer_rapport_pdf(
     V_lim=0.0,
     **kwargs,
 ):
-    """Construit le PDF et retourne son chemin."""
+    """Construit le PDF et retourne son chemin (dans un emplacement inscriptible)."""
     beton_data = load_beton_data()
     d = beton_data.get(beton, {})
     fck_cube = d.get("fck_cube", 30)
@@ -195,9 +195,17 @@ def generer_rapport_pdf(
             besoin_str = "Non acceptable (> τ_adm IV)."
             etat_tranchant = "nok"
 
-    # Sortie PDF (assure le dossier)
-    out_dir = "/mnt/data"
-    os.makedirs(out_dir, exist_ok=True)
+    # ---------- Sortie PDF : /mnt/data si possible, sinon /tmp ----------
+    preferred_dir = "/mnt/data"
+    out_dir = None
+    try:
+        os.makedirs(preferred_dir, exist_ok=True)
+        out_dir = preferred_dir
+    except PermissionError:
+        out_dir = tempfile.gettempdir()  # toujours inscriptible
+    except Exception:
+        out_dir = tempfile.gettempdir()
+
     out_name = f"rapport__{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     out_path = os.path.join(out_dir, out_name)
 
@@ -219,40 +227,38 @@ def generer_rapport_pdf(
 
         # Titre & méta
         flow.append(Paragraph("Rapport de dimensionnement – Poutre en béton armé", S["Title"]))
-        meta_tbl = Table(
+        flow.append(Table(
             [
                 ["Projet :", nom_projet or "—", "Date :", date or datetime.today().strftime("%d/%m/%Y")],
                 ["Partie :", partie or "—", "Indice :", indice or "—"],
             ],
-            colWidths=[18*mm, 70*mm, 18*mm, 70*mm]
-        )
-        meta_tbl.setStyle(TableStyle([
-            ("FONTNAME", (0,0), (-1,-1), "Times-Roman"),
-            ("FONTSIZE", (0,0), (-1,-1), 10.5),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 3),
-        ]))
-        flow.append(meta_tbl)
+            colWidths=[18*mm, 70*mm, 18*mm, 70*mm],
+            style=TableStyle([
+                ("FONTNAME", (0,0), (-1,-1), "Times-Roman"),
+                ("FONTSIZE", (0,0), (-1,-1), 10.5),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+            ])
+        ))
         flow.append(Spacer(1, 6*mm))
 
         # Caractéristiques
         flow.append(Paragraph("Caractéristiques de la poutre", S["H1"]))
-        car_tbl = Table(
+        flow.append(Table(
             [
                 ["Classe de béton", beton, "Acier (fyk)", f"{fyk} N/mm²"],
                 ["Largeur b", f"{fr(b,1)} cm", "Hauteur h", f"{fr(h,1)} cm"],
-                ["Enrobage", f"{fr(enrobage,1)} cm", "Hauteur utile d", f"{fr(d_utile,1)} cm"],
+                ["Enrobage", f"{fr(enrobage,1)} cm", "Hauteur utile d", f"{fr(h-enrobage,1)} cm"],
             ],
-            colWidths=[35*mm, 55*mm, 35*mm, 55*mm]
-        )
-        car_tbl.setStyle(TableStyle([
-            ("GRID", (0,0), (-1,-1), 0.25, colors.HexColor("#cccccc")),
-            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f6f6f6")),
-            ("FONTNAME", (0,0), (-1,-1), "Times-Roman"),
-            ("FONTSIZE", (0,0), (-1,-1), 10.5),
-            ("ALIGN", (0,0), (-1,-1), "LEFT"),
-            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ]))
-        flow.append(car_tbl)
+            colWidths=[35*mm, 55*mm, 35*mm, 55*mm],
+            style=TableStyle([
+                ("GRID", (0,0), (-1,-1), 0.25, colors.HexColor("#cccccc")),
+                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f6f6f6")),
+                ("FONTNAME", (0,0), (-1,-1), "Times-Roman"),
+                ("FONTSIZE", (0,0), (-1,-1), 10.5),
+                ("ALIGN", (0,0), (-1,-1), "LEFT"),
+                ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ])
+        ))
         flow.append(Spacer(1, 5*mm))
 
         # h_min
@@ -276,9 +282,12 @@ def generer_rapport_pdf(
         tex_as = r"A_{s,\mathrm{inf}}=\dfrac{M_\mathrm{inf}\cdot 10^{6}}{f_{yd}\cdot 0.9\,d\cdot 10}" + tex_unit("mm^2")
         tex_as_num = (
             r"A_{s,\mathrm{inf}}=\dfrac{" + fr(M_inf,2).replace(",", ".") + r"\cdot 10^{6}}{" +
-            fr(fyd,1).replace(",", ".") + r"\cdot 0.9\cdot " + fr(d_utile,1).replace(",", ".") + r"\cdot 10}" +
+            fr(fyd,1).replace(",", ".") + r"\cdot 0.9\cdot " + fr(h-enrobage,1).replace(",", ".") + r"\cdot 10}" +
             tex_unit("mm^2")
         )
+        As_min = 0.0013 * b * h * 1e2
+        As_max = 0.04 * b * h * 1e2
+        As_inf = (M_inf * 1e6) / (fyd * 0.9 * (h-enrobage) * 10) if M_inf > 0 else 0.0
         res_as = f"Résultat : <b>A<sub>s,inf</sub> = {fr(As_inf,1)} mm²</b>"
         flow += eq_block(2, tex_as, tmpdir, tex_as_num, res_as)
         flow.append(Paragraph(
@@ -294,9 +303,10 @@ def generer_rapport_pdf(
             tex_as_sup = r"A_{s,\mathrm{sup}}=\dfrac{M_\mathrm{sup}\cdot 10^{6}}{f_{yd}\cdot 0.9\,d\cdot 10}" + tex_unit("mm^2")
             tex_as_sup_num = (
                 r"A_{s,\mathrm{sup}}=\dfrac{" + fr(M_sup,2).replace(",", ".") + r"\cdot 10^{6}}{" +
-                fr(fyd,1).replace(",", ".") + r"\cdot 0.9\cdot " + fr(d_utile,1).replace(",", ".") + r"\cdot 10}" +
+                fr(fyd,1).replace(",", ".") + r"\cdot 0.9\cdot " + fr(h-enrobage,1).replace(",", ".") + r"\cdot 10}" +
                 tex_unit("mm^2")
             )
+            As_sup = (M_sup * 1e6) / (fyd * 0.9 * (h-enrobage) * 10) if M_sup > 0 else 0.0
             res_as_sup = f"Résultat : <b>A<sub>s,sup</sub> = {fr(As_sup,1)} mm²</b>"
             flow += eq_block(3, tex_as_sup, tmpdir, tex_as_sup_num, res_as_sup)
             flow.append(Paragraph(
@@ -314,13 +324,24 @@ def generer_rapport_pdf(
                 fr(b,1).replace(",", ".") + r"\cdot " + fr(h,1).replace(",", ".") + r"\cdot 100}" +
                 tex_unit("N/mm^{2}")
             )
+            tau = (V * 1e3) / (0.75 * b * h * 100)
+            tau_1 = 0.016 * fck_cube / 1.05
+            tau_2 = 0.032 * fck_cube / 1.05
+            tau_4 = 0.064 * fck_cube / 1.05
             res_tau = f"Résultat : <b>τ = {fr(tau,2)} N/mm²</b>"
             flow += eq_block(4, tex_tau, tmpdir, tex_tau_num, res_tau)
             flow.append(Paragraph(
                 f"Seuils : τ<sub>adm I</sub> = {fr(tau_1,2)} ; τ<sub>adm II</sub> = {fr(tau_2,2)} ; "
                 f"τ<sub>adm IV</sub> = {fr(tau_4,2)} (N/mm²).", S["Small"])
             )
-            flow.append(Paragraph(besoin_str, S["Green" if etat_tranchant != "nok" else "Red"]))
+            besoin_str = (
+                "Pas besoin d’étriers (≤ τ_adm I)." if tau <= tau_1 else
+                "Besoin d’étriers (≤ τ_adm II)." if tau <= tau_2 else
+                "Barres inclinées + étriers (≤ τ_adm IV)." if tau <= tau_4 else
+                "Non acceptable (> τ_adm IV)."
+            )
+            color = "Green" if tau <= tau_4 else "Red"
+            flow.append(Paragraph(besoin_str, S[color]))
             flow.append(Spacer(1, 4*mm))
 
         # (Optionnel) étriers si fournis
@@ -328,7 +349,7 @@ def generer_rapport_pdf(
         o_et = kwargs.get("ø_etrier") or kwargs.get("o_etrier")
         if all(v is not None for v in [n_et, o_et]) and V and V > 0:
             Ast_e = n_et * math.pi * (float(o_et)/2.0)**2
-            pas_th = Ast_e * fyd * d_utile * 10 / (10 * V * 1e3)
+            pas_th = Ast_e * fyd * (h-enrobage) * 10 / (10 * V * 1e3)
             flow.append(Paragraph("Détermination des étriers (optionnel)", S["H1"]))
             tex_Aste = r"A_{st,e} = n \cdot \pi \left(\dfrac{\varnothing}{2}\right)^{2}" + tex_unit("mm^{2}")
             tex_Aste_num = (
@@ -339,7 +360,7 @@ def generer_rapport_pdf(
             tex_pas = r"s_\mathrm{th} = \dfrac{A_{st,e}\, f_{yd}\, d\, 10}{10\, V \cdot 10^{3}}" + tex_unit("cm")
             tex_pas_num = (
                 r"s_\mathrm{th} = \dfrac{" + fr(Ast_e,1).replace(",", ".") + r"\cdot " +
-                fr(fyd,1).replace(",", ".") + r"\cdot " + fr(d_utile,1).replace(",", ".") +
+                fr(fyd,1).replace(",", ".") + r"\cdot " + fr(h-enrobage,1).replace(",", ".") +
                 r"\cdot 10}{10\cdot " + fr(V,2).replace(",", ".") + r"\cdot 10^{3}}" + tex_unit("cm")
             )
             flow += eq_block(6, tex_pas, tmpdir, tex_pas_num, f"Résultat : <b>s_th = {fr(pas_th,1)} cm</b>")
