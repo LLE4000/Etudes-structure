@@ -124,13 +124,14 @@ def eq_block(eq_no, tex_symbolic, tmpdir, tex_numeric=None, result_text=None, im
 
     pth_sym = os.path.join(tmpdir, f"eq_sym_{eq_no}.png")
     render_equation(tex_symbolic, pth_sym, fontsize=14)
-    flows.append(Image(pth_sym, width=img_width_mm*mm, preserveAspectRatio=True, hAlign="LEFT"))
+    # ⚠️ ReportLab Image n'a pas preserveAspectRatio ; donner seulement width garde l'AR
+    flows.append(Image(pth_sym, width=img_width_mm*mm, hAlign="LEFT"))
 
     if tex_numeric:
         pth_num = os.path.join(tmpdir, f"eq_num_{eq_no}.png")
         render_equation(tex_numeric, pth_num, fontsize=14)
         flows.append(Spacer(1, 3*mm))
-        flows.append(Image(pth_num, width=img_width_mm*mm, preserveAspectRatio=True, hAlign="LEFT"))
+        flows.append(Image(pth_num, width=img_width_mm*mm, hAlign="LEFT"))
 
     if result_text:
         flows.append(Spacer(1, 1.5*mm))
@@ -202,7 +203,7 @@ def generer_rapport_pdf(
         os.makedirs(preferred_dir, exist_ok=True)
         out_dir = preferred_dir
     except PermissionError:
-        out_dir = tempfile.gettempdir()  # toujours inscriptible
+        out_dir = tempfile.gettempdir()
     except Exception:
         out_dir = tempfile.gettempdir()
 
@@ -356,21 +357,22 @@ def generer_rapport_pdf(
                 r"A_{st,e} = " + str(int(n_et)) + r"\cdot \pi \left(\dfrac{" +
                 fr(o_et,0).replace(",", ".") + r"}{2}\right)^{2}" + tex_unit("mm^{2}")
             )
-            flow += eq_block(5, tex_Aste, tmpdir, tex_Aste_num, f"Résultat : <b>A<sub>st,e</sub> = {fr(Ast_e,1)} mm²</b>")
+            flow += eq_block(5, tmpdir=tmpdir, tex_symbolic=tex_Aste, tex_numeric=tex_Aste_num,
+                             result_text=f"Résultat : <b>A<sub>st,e</sub> = {fr(Ast_e,1)} mm²</b>")
             tex_pas = r"s_\mathrm{th} = \dfrac{A_{st,e}\, f_{yd}\, d\, 10}{10\, V \cdot 10^{3}}" + tex_unit("cm")
             tex_pas_num = (
                 r"s_\mathrm{th} = \dfrac{" + fr(Ast_e,1).replace(",", ".") + r"\cdot " +
                 fr(fyd,1).replace(",", ".") + r"\cdot " + fr(h-enrobage,1).replace(",", ".") +
                 r"\cdot 10}{10\cdot " + fr(V,2).replace(",", ".") + r"\cdot 10^{3}}" + tex_unit("cm")
             )
-            flow += eq_block(6, tex_pas, tmpdir, tex_pas_num, f"Résultat : <b>s_th = {fr(pas_th,1)} cm</b>")
+            flow += eq_block(6, tmpdir=tmpdir, tex_symbolic=tex_pas, tex_numeric=tex_pas_num,
+                             result_text=f"Résultat : <b>s_th = {fr(pas_th,1)} cm</b>")
 
         flow.append(Spacer(1, 8*mm))
         flow.append(Paragraph("Rapport généré automatiquement – © Études Structure", S["Small"]))
 
         # Build
         doc.build(flow)
-
         return out_path
 
     finally:
