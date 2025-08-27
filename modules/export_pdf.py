@@ -1,313 +1,304 @@
 # modules/export_pdf.py
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+
+import io, json, math, os
+from datetime import datetime
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, HRFlowable
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether
+)
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
+# Matplotlib pour rendre les formules LaTeX en images
 import matplotlib
-matplotlib.use("Agg")  # rendu offscreen
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from datetime import datetime
-import math
-import os
-import io
+# ---------- Police (optionnel : DejaVuSans pour une bonne couverture) ----------
+def _register_fonts():
+    try:
+        pdfmetrics.registerFont(TTFont("DejaVuSans", "DejaVuSans.ttf"))
+        pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", "DejaVuSans-Bold.ttf"))
+        base, bold = "DejaVuSans", "DejaVuSans-Bold"
+    except Exception:
+        # fallback sur Times si la TTF n'est pas dispo
+        base, bold = "Times-Roman", "Times-Bold"
+    return base, bold
 
-# --------------------------------------------------------------------------------------
-# Mini BDD matériaux (extrait suffisant pour le rapport, cohérent avec ton module)
-# --------------------------------------------------------------------------------------
-BETON_DB = {
-    "C20/25": {"fck": 20, "fck_cube": 25, "alpha_b": 0.68, "mu_a400": 9.0, "mu_a500": 10.5},
-    "C25/30": {"fck": 25, "fck_cube": 30, "alpha_b": 0.70, "mu_a400": 9.5, "mu_a500": 11.0},
-    "C30/37": {"fck": 30, "fck_cube": 37, "alpha_b": 0.72, "mu_a400": 10.0, "mu_a500": 11.5},
-    "C35/45": {"fck": 35, "fck_cube": 45, "alpha_b": 0.74, "mu_a400": 10.5, "mu_a500": 12.0},
-    "C40/50": {"fck": 40, "fck_cube": 50, "alpha_b": 0.76, "mu_a400": 11.0, "mu_a500": 12.5},
-    "C45/55": {"fck": 45, "fck_cube": 55, "alpha_b": 0.78, "mu_a400": 11.5, "mu_a500": 13.0},
-    "C50/60": {"fck": 50, "fck_cube": 60, "alpha_b": 0.80, "mu_a400": 12.0, "mu_a500": 13.5},
-}
+BASE_FONT, BOLD_FONT = _register_fonts()
 
-# --------------------------------------------------------------------------------------
-# Outils LaTeX -> image (aligné gauche)
-# --------------------------------------------------------------------------------------
-def latex_to_img_bytes(latex_str: str, fontsize: int = 18, dpi: int = 300, pad: float = 0.15):
+# ---------- Styles ----------
+def _styles():
+    styles = getSampleStyleSheet()
+    styles["Normal"].fontName = BASE_FONT
+    styles["Normal"].fontSize = 10.5
+    styles["Normal"].leading = 14
+
+    styles["Heading1"].fontName = BOLD_FONT
+    styles["Heading1"].fontSize = 18
+    styles["Heading1"].spaceAfter = 6
+
+    styles["Heading2"] = ParagraphStyle(
+        "Heading2", parent=styles["Normal"], fontName=BOLD_FONT,
+        fontSize=12.5, spaceBefore=8, spaceAfter=4
+    )
+
+    styles["Small"] = ParagraphStyle(
+        "Small", parent=styles["Normal"], fontSize=9.5, leading=12
+    )
+
+    styles["Mono"] = ParagraphStyle(
+        "Mono", parent=styles["Normal"], fontName=BASE_FONT, fontSize=10.5
+    )
+
+    return styles
+
+STY = _styles()
+
+# ---------- Rendu LaTeX propre, aligné à gauche, taille ≈ texte ----------
+def _latex_image(math_tex: str, text_pt: float = 10.5) -> Image:
     """
-    Rend une expression LaTeX en image (PNG) alignée à gauche.
-    Retourne des bytes (PNG) à insérer dans le PDF via reportlab Image.
+    Rend une formule LaTeX (MathText matplotlib) en image et renvoie
+    un flowable Image reportlab aligné à gauche, dimensionné pour que
+    la hauteur corresponde à ~1 ligne de texte (text_pt).
     """
-    fig = plt.figure(figsize=(0.01, 0.01), dpi=dpi)
+    fig = plt.figure(figsize=(0.01, 0.01), dpi=300)
+    fig.patch.set_alpha(0.0)
     ax = fig.add_axes([0, 0, 1, 1])
     ax.axis("off")
-    ax.text(0.0, 1.0, r"$%s$" % latex_str, ha="left", va="top", fontsize=fontsize)
+
+    # Rendre la formule — utiliser la même taille que le texte PDF
+    ax.text(0, 0.7, f"${math_tex}$",
+            fontsize=text_pt, ha="left", va="center",
+            color="black", fontfamily="DejaVu Sans")
+
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=pad, transparent=False)
+    fig.savefig(buf, format="png", transparent=True, dpi=300, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
     buf.seek(0)
-    return buf
 
-def latex_paragraph(latex_str: str, width: float = 14*cm, fontsize: int = 18):
-    """
-    Helper : retourne un flowable Image depuis latex, contraint en largeur (garde proportion).
-    """
-    img_bytes = latex_to_img_bytes(latex_str, fontsize=fontsize)
-    img = Image(img_bytes)
-    img._restrictSize(width, 8*cm)
+    img = Image(buf)
+    img.hAlign = "LEFT"            # alignement à gauche
+    # L’image sort à l’échelle « 1:1 » en points ; on laisse ReportLab garder la taille naturelle,
+    # ce qui correspond bien à une ligne de texte ~ text_pt.
     return img
 
-# --------------------------------------------------------------------------------------
-# Styles
-# --------------------------------------------------------------------------------------
-def _styles():
-    ss = getSampleStyleSheet()
-    base = ss["Normal"]
-    base.fontName = "Helvetica"
-    base.fontSize = 10
-    base.leading = 14
+# ---------- Outils ----------
+def _kv(label, value):
+    return Paragraph(f"<b>{label}</b>&nbsp;&nbsp;{value}", STY["Normal"])
 
-    title = ParagraphStyle("Title", parent=base, fontSize=18, leading=22, spaceAfter=8, spaceBefore=2, alignment=0, fontName="Helvetica-Bold")
-    h1 = ParagraphStyle("H1", parent=base, fontSize=14, leading=18, spaceBefore=10, spaceAfter=6, fontName="Helvetica-Bold")
-    h2 = ParagraphStyle("H2", parent=base, fontSize=12, leading=16, spaceBefore=8, spaceAfter=6, fontName="Helvetica-Bold")
-    small = ParagraphStyle("Small", parent=base, fontSize=9, leading=12, textColor=colors.grey)
-    ok = ParagraphStyle("OK", parent=base, textColor=colors.green, fontName="Helvetica-Bold")
-    nok = ParagraphStyle("NOK", parent=base, textColor=colors.red, fontName="Helvetica-Bold")
-    return {"base": base, "title": title, "h1": h1, "h2": h2, "small": small, "ok": ok, "nok": nok}
+def _hr(thickness=0.6):
+    t = Table([[""]], colWidths=[17*cm])
+    t.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, -1), thickness, colors.lightgrey)]))
+    return t
 
-# --------------------------------------------------------------------------------------
-# Rapport
-# --------------------------------------------------------------------------------------
+def _load_beton_props(beton_label: str, fyk_str: str):
+    """
+    Récupère fck_cube, alpha_b et mu (suivant fyk) depuis beton_classes.json.
+    S'il n'est pas trouvé -> valeurs par défaut raisonnables.
+    """
+    try:
+        with open("beton_classes.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+        b = data[beton_label]
+        fck_cube = float(b["fck_cube"])
+        alpha_b  = float(b["alpha_b"])
+        mu_val   = float(b[f"mu_a{fyk_str}"])
+        return fck_cube, alpha_b, mu_val, True
+    except Exception:
+        # Défauts (sûrs mais génériques)
+        # fck_cube ~ 1.23*fck ; on ne l’a pas, on prend 37 MPa et des valeurs EC2 « typiques »
+        return 37.0, 0.85, 7.5, False
+
+# ---------- Section formules (symbole + numérique) ----------
+def _formula_block(title: str, lines: list[tuple[str, str]]):
+    """
+    title : titre de la mini-section
+    lines : liste de tuples (formule_symbolique, formule_numérique_évaluée)
+    """
+    story = [Paragraph(title, STY["Heading2"])]
+    for symb, num in lines:
+        story.append(_latex_image(symb, text_pt=11))   # formule
+        story.append(Spacer(0, 2))
+        if num:
+            story.append(_latex_image(num, text_pt=10.5))  # évaluation
+            story.append(Spacer(0, 6))
+        else:
+            story.append(Spacer(0, 8))
+    return KeepTogether(story)
+
+# ---------- Génération ----------
 def generer_rapport_pdf(
     nom_projet: str = "",
     partie: str = "",
     date: str = "",
     indice: str = "",
     beton: str = "",
-    fyk: str = "500",
-    b: float = 0,
-    h: float = 0,
-    enrobage: float = 0,
-    M_inf: float = 0,
-    M_sup: float = 0,
-    V: float = 0,
-    V_lim: float = 0,
-):
+    fyk: str = "",
+    b: float = 0.0,
+    h: float = 0.0,
+    enrobage: float = 0.0,
+    M_inf: float = 0.0,
+    M_sup: float = 0.0,
+    V: float = 0.0,
+    V_lim: float = 0.0,
+) -> str:
     """
-    Génère un PDF pro avec formules détaillées (LaTeX rendues).
-    Retourne le chemin du fichier PDF généré.
+    Construit un rapport PDF élégant, formules alignées à gauche et
+    développées avec les valeurs numériques.
+    Retourne le chemin du PDF généré.
     """
-    st = _styles()
 
-    # Sécurité matériaux
-    if beton not in BETON_DB:
-        # fallback neutre si la classe n'est pas dans la mini BDD
-        mat = {"fck": 30, "fck_cube": 37, "alpha_b": 0.72, "mu_a400": 10.0, "mu_a500": 11.5}
+    # Chargement propriétés béton (pour h_min & cisaillement)
+    fck_cube, alpha_b, mu_val, from_json = _load_beton_props(beton or "C30/37", fyk or "500")
+    fyd = float(fyk or 500) / 1.5
+    b_cm, h_cm, c_cm = float(b), float(h), float(enrobage)
+    d_cm = h_cm - c_cm
+    Mmax = max(float(M_inf or 0), float(M_sup or 0))
+
+    # Hauteur mini (reprend ta relation du module)
+    # h_min(cm) = sqrt( (M_max * 1e6) / (alpha_b * b*10 * mu_val) ) / 10
+    if b_cm > 0 and alpha_b > 0 and mu_val > 0:
+        hmin_cm = math.sqrt((Mmax * 1e6) / (alpha_b * b_cm * 10.0 * mu_val)) / 10.0
     else:
-        mat = BETON_DB[beton]
+        hmin_cm = 0.0
 
-    mu = mat["mu_a500"] if str(fyk) == "500" else mat["mu_a400"]
-    alpha_b = mat["alpha_b"]
-    fck_cube = mat["fck_cube"]
-    fyd = float(fyk) / 1.5  # même convention que ton module
+    # A_s min/max
+    As_min = 0.0013 * b_cm * h_cm * 1e2
+    As_max = 0.04   * b_cm * h_cm * 1e2
 
-    # Conversions utiles
-    d_utile = h - enrobage  # cm
+    # A_s inf / sup
+    As_inf = (M_inf * 1e6) / (fyd * 0.9 * d_cm * 10.0) if d_cm > 0 and fyd > 0 else 0.0
+    As_sup = (M_sup * 1e6) / (fyd * 0.9 * d_cm * 10.0) if d_cm > 0 and fyd > 0 else 0.0
 
-    # Hauteur utile : hmin
-    M_max = max(M_inf, M_sup or 0.0)
-    hmin = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu)) / 10.0  # cm
-    hauteur_ok = (hmin + enrobage) <= h
+    # Cisaillement
+    tau_1 = 0.016 * fck_cube / 1.05
+    tau_2 = 0.032 * fck_cube / 1.05
+    tau_4 = 0.064 * fck_cube / 1.05
+    tau = V * 1e3 / (0.75 * b_cm * h_cm * 100.0) if b_cm > 0 and h_cm > 0 else 0.0
+    tau_r = V_lim * 1e3 / (0.75 * b_cm * h_cm * 100.0) if b_cm > 0 and h_cm > 0 else 0.0
 
-    # Armatures
-    As_min = 0.0013 * b * h * 1e2
-    As_max = 0.04   * b * h * 1e2
+    # Pas théorique d’étriers (si V>0) — formule issue de ton module
+    # s_th (cm) = Ast * fyd * d * 10 / (10 * V * 1e3)
+    # Ici on ne connaît pas Ast choisi -> on affiche la forme générale + la version avec un Ast symbolique.
+    # On laisse Ast = A_st (mm²) dans la ligne « évaluée » pour montrer la dépendance.
+    # (Tu pourras remplacer A_st par la valeur saisie si tu l’ajoutes dans l’appel.)
+    s_th_expr = r"s_{\mathrm{th}}=\dfrac{A_{st}\,f_{yd}\,d\,10}{10\,V\,10^3}\ \ \text{[cm]}"
+    s_th_eval = rf"s_{{\mathrm{{th}}}}=\dfrac{{A_{{st}} \times {fyd:.1f} \times {d_cm:.1f} \times 10}}{{10 \times {V:.2f} \times 10^3}}"
 
-    As_inf = (M_inf * 1e6) / (fyd * 0.9 * d_utile * 10) if M_inf > 0 else 0.0
-    As_sup = (M_sup * 1e6) / (fyd * 0.9 * d_utile * 10) if M_sup and M_sup > 0 else 0.0
-
-    # Tranchant (ELS simplifié comme dans ton module)
-    tau = V * 1e3 / (0.75 * b * h * 100) if V > 0 else 0.0
-    tau_I   = 0.016 * fck_cube / 1.05
-    tau_II  = 0.032 * fck_cube / 1.05
-    tau_IV  = 0.064 * fck_cube / 1.05
-
-    def verdict_tau(t):
-        if t <= tau_I:  return "✓ Pas besoin d’étriers", "ok"
-        if t <= tau_II: return "✓ Besoin d’étriers (Niveau II)", "ok"
-        if t <= tau_IV: return "⚠ Besoin de barres inclinées + étriers (Niveau IV)", "nok"
-        return "✗ Pas acceptable", "nok"
-
-    msg_tau, etat_tau = verdict_tau(tau)
-
-    # Tranchant réduit
-    tau_r = V_lim * 1e3 / (0.75 * b * h * 100) if V_lim and V_lim > 0 else 0.0
-    if V_lim and V_lim > 0:
-        msg_tau_r, etat_tau_r = verdict_tau(tau_r)
-    else:
-        msg_tau_r, etat_tau_r = "", "ok"
-
-    # Nom de fichier
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"rapport__{ts}.pdf"
-
+    # ---------- Document ----------
+    out_name = f"rapport__{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     doc = SimpleDocTemplate(
-        filename,
-        pagesize=A4,
-        rightMargin=2*cm, leftMargin=2*cm, topMargin=1.5*cm, bottomMargin=1.5*cm
+        out_name, pagesize=A4,
+        leftMargin=2.1*cm, rightMargin=1.6*cm, topMargin=1.6*cm, bottomMargin=1.6*cm
     )
 
-    flow = []
+    story = []
 
     # En-tête
-    flow.append(Paragraph("Rapport de dimensionnement – Poutre en béton armé", st["title"]))
-    flow.append(HRFlowable(color=colors.HexColor("#555555"), thickness=0.6))
-    flow.append(Spacer(1, 8))
-
-    # Infos projet
-    info_data = [
-        ["Projet :", nom_projet or "—", "Date :", date or datetime.today().strftime("%d/%m/%Y")],
-        ["Partie :", partie or "—", "Indice :", indice or "—"],
+    story.append(Paragraph("Rapport de dimensionnement – <i>Poutre en béton armé</i>", STY["Heading1"]))
+    meta = [
+        [_kv("Projet :", nom_projet or "—"), _kv("Date :", date or datetime.today().strftime("%d/%m/%Y"))],
+        [_kv("Partie :", partie or "—"), _kv("Indice :", indice or "—")],
     ]
-    t = Table(info_data, colWidths=[2.5*cm, 8*cm, 2.5*cm, 3*cm])
+    t = Table(meta, colWidths=[8.3*cm, 8.3*cm])
     t.setStyle(TableStyle([
-        ("FONTNAME", (0,0), (-1,-1), "Helvetica"),
-        ("FONTSIZE", (0,0), (-1,-1), 10),
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
     ]))
-    flow.append(t)
-    flow.append(Spacer(1, 10))
+    story += [t, Spacer(0, 6), _hr(), Spacer(0, 6)]
 
     # Caractéristiques
-    flow.append(Paragraph("Caractéristiques de la poutre", st["h1"]))
-    car_data = [
-        ["Classe de béton", beton or "—", "Acier (fyk)", f"{fyk} N/mm²"],
-        ["Largeur b", f"{b:.1f} cm", "Hauteur h", f"{h:.1f} cm"],
-        ["Enrobage", f"{enrobage:.1f} cm", "Hauteur utile d", f"{d_utile:.1f} cm"],
+    story.append(Paragraph("Caractéristiques", STY["Heading2"]))
+    carac = [
+        [_kv("Classe de béton", beton or "—"), _kv("Acier (fyk)", f"{(fyk or '—')} N/mm²")],
+        [_kv("Largeur b", f"{b_cm:.2f} cm"), _kv("Hauteur h", f"{h_cm:.2f} cm")],
+        [_kv("Enrobage", f"{c_cm:.2f} cm"), _kv("Hauteur utile d", f"{d_cm:.2f} cm")],
     ]
-    t = Table(car_data, colWidths=[3.5*cm, 5.5*cm, 3.5*cm, 5.5*cm])
-    t.setStyle(TableStyle([
-        ("FONTNAME", (0,0), (-1,-1), "Helvetica"),
-        ("FONTSIZE", (0,0), (-1,-1), 10),
-        ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
-        ("GRID", (0,0), (-1,-1), 0.25, colors.lightgrey),
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("LEFTPADDING", (0,0), (-1,-1), 4),
-        ("RIGHTPADDING", (0,0), (-1,-1), 4),
+    tcar = Table(carac, colWidths=[8.3*cm, 8.3*cm])
+    tcar.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("ROWSPACING", (0,0), (-1,-1), 2),
     ]))
-    flow.append(t)
-    flow.append(Spacer(1, 10))
+    note = ""
+    if not from_json:
+        note = " (valeurs par défaut)"
+    story += [tcar, Spacer(0, 4), Paragraph(f"<font size=9.5>Paramètres béton{note} : "
+                                           f"f<sub>ck,cube</sub>={fck_cube:.1f} MPa, "
+                                           f"α<sub>b</sub>={alpha_b:.2f}, μ={mu_val:.2f}</font>", STY["Small"]),
+              Spacer(0, 6), _hr(), Spacer(0, 6)]
 
-    # ==========================
-    # Vérif hauteur utile
-    # ==========================
-    flow.append(Paragraph("Vérification de la hauteur utile", st["h1"]))
-    # Formule générique
-    flow.append(latex_paragraph(r"h_{\min}=\sqrt{\dfrac{M_{\max}\cdot 10^{6}}{\alpha_b\, b\, 10\, \mu_a}}\;\div\;10", fontsize=18))
-    # Substitution
-    sub = (
-        r"h_{\min}"
-        rf"=\sqrt{{\dfrac{{{M_max:.2f}\cdot 10^{{6}}}}{{{alpha_b:.3g}\cdot {b:.0f}\cdot 10 \cdot {mu:.3g}}}}}\div 10"
-        rf"={hmin:.1f}\ \mathrm{{cm}}"
-    )
-    flow.append(latex_paragraph(sub, fontsize=16))
-    # Conclusion
-    concl = f"h,min + enrobage = {hmin+enrobage:.1f} cm {'≤' if hauteur_ok else '>'} h = {h:.1f} cm — "
-    concl += "✓ Conforme" if hauteur_ok else "✗ Non conforme"
-    flow.append(Paragraph(concl, st["ok"] if hauteur_ok else st["nok"]))
-    flow.append(Spacer(1, 6))
+    # ---- Vérification de la hauteur utile
+    lines_h = [
+        (r"h_{\min}=\sqrt{\dfrac{M_{\max}\times 10^6}{\alpha_b\ b\ 10\ \mu}}\ /\ 10",
+         rf"h_{{\min}}=\sqrt{{\dfrac{{{Mmax:.2f}\times 10^6}}{{{alpha_b:.2f}\cdot {b_cm:.1f}\cdot 10\cdot {mu_val:.2f}}}}}\ /\ 10"
+        ),
+        (r"h_{\min}+c\leq h", rf"{hmin_cm:.1f}+{c_cm:.1f}\leq {h_cm:.1f}"),
+    ]
+    story.append(_formula_block("Vérification de la hauteur utile", lines_h))
 
-    # ==========================
-    # Armatures inférieures
-    # ==========================
-    flow.append(Paragraph("Armatures inférieures", st["h1"]))
-    flow.append(latex_paragraph(r"A_{s,\mathrm{inf}}=\dfrac{M_{\mathrm{inf}}\cdot 10^{6}}{f_{yd}\cdot 0.9\, d\cdot 10}", fontsize=18))
-    sub = (
-        r"A_{s,\mathrm{inf}}"
-        rf"=\dfrac{{{M_inf:.2f}\cdot 10^{{6}}}}{{{fyd:.1f}\cdot 0.9\cdot {d_utile:.1f}\cdot 10}}"
-        rf"={As_inf:.1f}\ \mathrm{{mm^2}}"
-    )
-    flow.append(latex_paragraph(sub, fontsize=16))
-    flow.append(latex_paragraph(
-        rf"A_{{s,\min}}=0.0013\, b\, h \cdot 10^{{2}}={0.0013*b*h*1e2:.1f}\ \mathrm{{mm^2}},\quad "
-        rf"A_{{s,\max}}=0.04\, b\, h \cdot 10^{{2}}={0.04*b*h*1e2:.1f}\ \mathrm{{mm^2}}", fontsize=14
-    ))
-    flow.append(Spacer(1, 6))
+    # ---- Armatures inférieures
+    lines_As_inf = [
+        (r"A_{s,\mathrm{inf}}=\dfrac{M_{\mathrm{inf}}\times 10^6}{f_{yd}\cdot 0.9\,d\cdot 10}\ \ \text{[mm}^2\text{]}",
+         rf"A_{{s,\mathrm{{inf}}}}=\dfrac{{{M_inf:.2f}\times 10^6}}{{{fyd:.1f}\cdot 0.9\cdot {d_cm:.1f}\cdot 10}}"
+        ),
+        (r"A_{s,\min}=0.0013\,b\,h\cdot 10^2\ \ ;\ \ A_{s,\max}=0.04\,b\,h\cdot 10^2",
+         rf"A_{{s,\min}}={As_min:.0f}\ \ \ ;\ \ A_{{s,\max}}={As_max:.0f}"
+        ),
+    ]
+    story.append(_formula_block("Armatures inférieures", lines_As_inf))
+    story.append(Paragraph(f"<b>Résultat :</b> A<sub>s,inf</sub> = {As_inf:.0f} mm²", STY["Normal"]))
+    story += [Spacer(0, 6), _hr(), Spacer(0, 6)]
 
-    # ==========================
-    # Armatures supérieures (si M_sup)
-    # ==========================
-    if M_sup and M_sup > 0:
-        flow.append(Paragraph("Armatures supérieures", st["h1"]))
-        flow.append(latex_paragraph(r"A_{s,\mathrm{sup}}=\dfrac{M_{\mathrm{sup}}\cdot 10^{6}}{f_{yd}\cdot 0.9\, d\cdot 10}", fontsize=18))
-        sub = (
-            r"A_{s,\mathrm{sup}}"
-            rf"=\dfrac{{{M_sup:.2f}\cdot 10^{{6}}}}{{{fyd:.1f}\cdot 0.9\cdot {d_utile:.1f}\cdot 10}}"
-            rf"={As_sup:.1f}\ \mathrm{{mm^2}}"
-        )
-        flow.append(latex_paragraph(sub, fontsize=16))
-        flow.append(latex_paragraph(
-            rf"A_{{s,\min}}=0.0013\, b\, h \cdot 10^{{2}}={As_min:.1f}\ \mathrm{{mm^2}},\quad "
-            rf"A_{{s,\max}}=0.04\, b\, h \cdot 10^{{2}}={As_max:.1f}\ \mathrm{{mm^2}}", fontsize=14
-        ))
-        flow.append(Spacer(1, 6))
+    # ---- Armatures supérieures (si M_sup > 0)
+    if (M_sup or 0) > 0:
+        lines_As_sup = [
+            (r"A_{s,\mathrm{sup}}=\dfrac{M_{\mathrm{sup}}\times 10^6}{f_{yd}\cdot 0.9\,d\cdot 10}",
+             rf"A_{{s,\mathrm{{sup}}}}=\dfrac{{{M_sup:.2f}\times 10^6}}{{{fyd:.1f}\cdot 0.9\cdot {d_cm:.1f}\cdot 10}}"
+            ),
+            (r"A_{s,\min}=0.0013\,b\,h\cdot 10^2\ \ ;\ \ A_{s,\max}=0.04\,b\,h\cdot 10^2",
+             rf"A_{{s,\min}}={As_min:.0f}\ \ \ ;\ \ A_{{s,\max}}={As_max:.0f}"
+            ),
+        ]
+        story.append(_formula_block("Armatures supérieures", lines_As_sup))
+        story.append(Paragraph(f"<b>Résultat :</b> A<sub>s,sup</sub> = {As_sup:.0f} mm²", STY["Normal"]))
+        story += [Spacer(0, 6), _hr(), Spacer(0, 6)]
 
-    # ==========================
-    # Effort tranchant
-    # ==========================
-    flow.append(Paragraph("Vérification de l'effort tranchant", st["h1"]))
-    flow.append(latex_paragraph(r"\tau=\dfrac{V\cdot 10^{3}}{0.75\, b\, h \cdot 100}", fontsize=18))
-    sub = (
-        r"\tau"
-        rf"=\dfrac{{{V:.2f}\cdot 10^{{3}}}}{{0.75\cdot {b:.0f}\cdot {h:.0f} \cdot 100}}"
-        rf"={tau:.2f}\ \mathrm{{N/mm^2}}"
-    )
-    flow.append(latex_paragraph(sub, fontsize=16))
-    flow.append(latex_paragraph(
-        rf"\tau_{{\mathrm{{adm}},I}}=0.016\,\dfrac{{f_{{ck,cube}}}}{{1.05}}={tau_I:.2f}\ \mathrm{{N/mm^2}},\quad"
-        rf"\tau_{{\mathrm{{adm}},II}}=0.032\,\dfrac{{f_{{ck,cube}}}}{{1.05}}={tau_II:.2f},\quad"
-        rf"\tau_{{\mathrm{{adm}},IV}}=0.064\,\dfrac{{f_{{ck,cube}}}}{{1.05}}={tau_IV:.2f}", fontsize=14
-    ))
-    flow.append(Paragraph(msg_tau, st["ok"] if etat_tau == "ok" else st["nok"]))
-    flow.append(Spacer(1, 6))
+    # ---- Effort tranchant
+    lines_tau = [
+        (r"\tau=\dfrac{V\cdot 10^3}{0.75\,b\,h\cdot 100}\ \ \text{[N/mm}^2\text{]}",
+         rf"\tau=\dfrac{{{V:.2f}\cdot 10^3}}{{0.75\cdot {b_cm:.1f}\cdot {h_cm:.1f}\cdot 100}}={tau:.2f}"
+        ),
+        (r"\tau_{\mathrm{adm},I}=0.016\,\dfrac{f_{ck,\mathrm{cube}}}{1.05},\ \tau_{\mathrm{adm},II}=0.032\,\dfrac{f_{ck,\mathrm{cube}}}{1.05},\ \tau_{\mathrm{adm},IV}=0.064\,\dfrac{f_{ck,\mathrm{cube}}}{1.05}",
+         rf"\tau_{{I}}={tau_1:.2f},\ \tau_{{II}}={tau_2:.2f},\ \tau_{{IV}}={tau_4:.2f}"
+        ),
+    ]
+    story.append(_formula_block("Vérification de l'effort tranchant", lines_tau))
 
-    # ==========================
-    # Tranchant réduit (option)
-    # ==========================
-    if V_lim and V_lim > 0:
-        flow.append(Paragraph("Vérification de l'effort tranchant réduit", st["h1"]))
-        flow.append(latex_paragraph(r"\tau_{\mathrm{réduit}}=\dfrac{V_{\mathrm{lim}}\cdot 10^{3}}{0.75\, b\, h \cdot 100}", fontsize=18))
-        sub = (
-            r"\tau_{\mathrm{réduit}}"
-            rf"=\dfrac{{{V_lim:.2f}\cdot 10^{{3}}}}{{0.75\cdot {b:.0f}\cdot {h:.0f} \cdot 100}}"
-            rf"={tau_r:.2f}\ \mathrm{{N/mm^2}}"
-        )
-        flow.append(latex_paragraph(sub, fontsize=16))
-        flow.append(Paragraph(msg_tau_r, st["ok"] if etat_tau_r == "ok" else st["nok"]))
-        flow.append(Spacer(1, 6))
+    # ---- Effort tranchant réduit (si saisi)
+    if (V_lim or 0) > 0:
+        lines_tau_r = [
+            (r"\tau_{\mathrm{r}}=\dfrac{V_{\mathrm{réduit}}\cdot 10^3}{0.75\,b\,h\cdot 100}",
+             rf"\tau_r=\dfrac{{{V_lim:.2f}\cdot 10^3}}{{0.75\cdot {b_cm:.1f}\cdot {h_cm:.1f}\cdot 100}}={tau_r:.2f}"
+            )
+        ]
+        story.append(_formula_block("Vérification de l'effort tranchant réduit", lines_tau_r))
 
-    # ==========================
-    # Étriers (si V>0)
-    # ==========================
-    if V > 0:
-        flow.append(Paragraph("Détermination des étriers (rappel formule théorique)", st["h1"]))
-        flow.append(latex_paragraph(
-            r"s_{\mathrm{th}}=\dfrac{A_{st}\, f_{yd}\, d \cdot 10}{10\, V\cdot 10^{3}}", fontsize=18
-        ))
-        flow.append(Paragraph(
-            "Avec \(A_{st}\) l’aire totale d’acier d’étriers par section, \(f_{yd}\) la limite élastique de calcul, "
-            "et \(d\) la hauteur utile.", st["base"])
-        )
-        flow.append(Spacer(1, 6))
+    story += [Spacer(0, 6), _hr(), Spacer(0, 6)]
 
-    # Pied de page
-    flow.append(Spacer(1, 12))
-    flow.append(HRFlowable(color=colors.HexColor("#dddddd"), thickness=0.4))
-    flow.append(Paragraph(
-        "Généré automatiquement – unités : M en kN·m, V en kN, b/h/enrobage/d en cm, \(A_s\) en mm², \(\\tau\) en N/mm².",
-        st["small"])
+    # ---- Étriers : rappel formule s_th
+    story.append(_formula_block("Détermination des étriers (rappel)", [(s_th_expr, s_th_eval)]))
+    story.append(Paragraph(
+        "Unités : M en kN·m, V en kN, b/h/c/d en cm, A<sub>s</sub> en mm², τ en N/mm². "
+        "Les formules ci-dessus reprennent exactement celles du module Streamlit.",
+        STY["Small"])
     )
 
     # Build
-    doc.build(flow)
-    return filename
+    doc.build(story)
+    return out_name
