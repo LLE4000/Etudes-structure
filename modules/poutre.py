@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime
 import json
 import math
-import base64
+import base64  # (inutile avec le nouveau save mais je laisse si tu l'utilises ailleurs)
 
 # ========= Styles blocs =========
 C_COULEURS = {"ok": "#e6ffe6", "warn": "#fffbe6", "nok": "#ffe6e6"}
@@ -29,6 +29,15 @@ def close_bloc():
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+# ---------- util : vrai reset ----------
+def _reset_module():
+    current_page = st.session_state.get("page")
+    st.session_state.clear()
+    if current_page:
+        st.session_state.page = current_page
+    st.rerun()
+
+
 def show():
     # ---------- État ----------
     if "uploaded_file" not in st.session_state:
@@ -47,46 +56,49 @@ def show():
     btn1, btn2, btn3, btn4, btn5 = st.columns(5)
 
     with btn1:
-        if st.button("🏠 Accueil", use_container_width=True):
+        if st.button("🏠 Accueil", use_container_width=True, key="btn_home"):
             st.session_state.retour_accueil_demande = True
             st.rerun()
 
     with btn2:
-        if st.button("🔄 Réinitialiser", use_container_width=True):
-            st.rerun()
+        if st.button("🔄 Réinitialiser", use_container_width=True, key="btn_reset"):
+            _reset_module()
 
     with btn3:
-        if st.button("💾 Enregistrer", use_container_width=True):
-            dict_a_sauver = {
-                k: v for k, v in st.session_state.items()
-                if isinstance(v, (int, float, str, bool, list, dict, type(None)))
-            }
-            contenu_json = json.dumps(dict_a_sauver, indent=2)
-            b64 = base64.b64encode(contenu_json.encode()).decode()
-            st.markdown(
-                f'<a href="data:application/json;base64,{b64}" download="sauvegarde.json">📥 Télécharger</a>',
-                unsafe_allow_html=True
-            )
+        # Enregistrer = téléchargement direct de l'état courant
+        payload = {
+            k: v for k, v in st.session_state.items()
+            if isinstance(v, (int, float, str, bool, list, dict, type(None)))
+        }
+        st.download_button(
+            label="💾 Enregistrer",
+            data=json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8"),
+            file_name="poutre_ba.json",
+            mime="application/json",
+            use_container_width=True,
+            key="btn_save_dl"
+        )
 
     with btn4:
-        if "ouvrir_fichier" not in st.session_state:
-            st.session_state.ouvrir_fichier = False
+        # Ouvrir = toggle + uploader ; charge le JSON et remplace l'état
+        if st.button("📂 Ouvrir", use_container_width=True, key="btn_open_toggle"):
+            st.session_state["show_open_uploader"] = not st.session_state.get("show_open_uploader", False)
 
-        if st.button("📂 Ouvrir", use_container_width=True):
-            st.session_state.ouvrir_fichier = True
-            st.rerun()
-
-        if st.session_state.ouvrir_fichier:
-            uploaded = st.file_uploader("Choisir un fichier JSON", type=["json"], label_visibility="collapsed")
+        if st.session_state.get("show_open_uploader", False):
+            uploaded = st.file_uploader("Choisir un fichier JSON", type=["json"], label_visibility="collapsed", key="open_uploader")
             if uploaded is not None:
-                contenu = json.load(uploaded)
-                for k, v in contenu.items():
-                    st.session_state[k] = v
-                st.session_state.ouvrir_fichier = False
+                data = json.load(uploaded)
+                current_page = st.session_state.get("page")
+                st.session_state.clear()
+                st.session_state.update(data)
+                if current_page:
+                    st.session_state.page = current_page
+                st.session_state["show_open_uploader"] = False
+                st.success("Fichier chargé.")
                 st.rerun()
 
     with btn5:
-        if st.button("📄 Générer PDF", use_container_width=True):
+        if st.button("📄 Générer PDF", use_container_width=True, key="btn_pdf"):
             from modules.export_pdf import generer_rapport_pdf
             fichier_pdf = generer_rapport_pdf(
                 nom_projet=st.session_state.get("nom_projet", ""),
@@ -109,6 +121,7 @@ def show():
                     data=f,
                     file_name=fichier_pdf,
                     mime="application/pdf",
+                    use_container_width=True,
                 )
             st.success("✅ Rapport généré")
 
@@ -160,19 +173,24 @@ def show():
         st.markdown("### Sollicitations")
         cmom, cev  = st.columns(2)
         with cmom:
-            M_inf = st.number_input("Moment inférieur M (kNm)", 0.0, step=10.0, key="M_inf")
+            # <- décimales fluides
+            M_inf = st.number_input("Moment inférieur M (kNm)", min_value=0.0, value=0.0,
+                                    step=0.01, format="%.2f", key="M_inf")
             m_sup = st.checkbox("Ajouter un moment supérieur", key="ajouter_moment_sup")
             if m_sup:
-                M_sup = st.number_input("Moment supérieur M_sup (kNm)", 0.0, step=10.0, key="M_sup")
+                M_sup = st.number_input("Moment supérieur M_sup (kNm)", min_value=0.0, value=0.0,
+                                        step=0.01, format="%.2f", key="M_sup")
             else:
                 M_sup = 0.0
                 if "M_sup" in st.session_state:
                     del st.session_state["M_sup"]
         with cev:
-            V = st.number_input("Effort tranchant V (kN)", 0.0, step=10.0, key="V")
+            V = st.number_input("Effort tranchant V (kN)", min_value=0.0, value=0.0,
+                                step=0.01, format="%.2f", key="V")
             v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="ajouter_effort_reduit")
             if v_sup:
-                V_lim = st.number_input("Effort tranchant réduit V_réduit (kN)", 0.0, step=10.0, key="V_lim")
+                V_lim = st.number_input("Effort tranchant réduit V_réduit (kN)", min_value=0.0, value=0.0,
+                                        step=0.01, format="%.2f", key="V_lim")
             else:
                 V_lim = 0.0
                 if "V_lim" in st.session_state:
@@ -229,7 +247,6 @@ def show():
         )
         close_bloc()
 
-
         # ---- Armatures supérieures (si M_sup) : bloc unique ----
         if m_sup:
             As_sup = (M_sup * 1e6) / (fyd * 0.9 * d_utile * 10)
@@ -262,7 +279,6 @@ def show():
                     unsafe_allow_html=True
                 )
             close_bloc()
-
 
         # ---- Vérification effort tranchant ----
         tau_1 = 0.016 * fck_cube / 1.05
