@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime
 import json
 import math
-import base64  # (inutile avec le nouveau save mais je laisse si tu l'utilises ailleurs)
+import base64  # peut servir ailleurs
 
 # ========= Styles blocs =========
 C_COULEURS = {"ok": "#e6ffe6", "warn": "#fffbe6", "nok": "#ffe6e6"}
@@ -28,8 +28,23 @@ def open_bloc(titre: str, etat: str = "ok"):
 def close_bloc():
     st.markdown("</div>", unsafe_allow_html=True)
 
+# ========= Clés à sauvegarder/charger (métier uniquement) =========
+SAVE_KEYS = {
+    # infos projet
+    "nom_projet", "partie", "date", "indice",
+    # matériaux / géométrie
+    "beton", "fyk", "b", "h", "enrobage",
+    # sollicitations
+    "M_inf", "ajouter_moment_sup", "M_sup",
+    "V", "ajouter_effort_reduit", "V_lim",
+    # armatures
+    "n_as_inf", "ø_as_inf", "n_as_sup", "ø_as_sup",
+    # étriers
+    "n_etriers", "ø_etrier", "pas_etrier",
+    "n_etriers_r", "ø_etrier_r", "pas_etrier_r",
+}
 
-# ---------- util : vrai reset ----------
+# ========= Réinitialisation propre =========
 def _reset_module():
     current_page = st.session_state.get("page")
     st.session_state.clear()
@@ -37,6 +52,31 @@ def _reset_module():
         st.session_state.page = current_page
     st.rerun()
 
+# ========= Saisie décimale FR robuste (texte + -/+) =========
+def float_input_fr(label, key, default=0.0, step=0.5, min_value=0.0):
+    """Champ texte qui accepte virgule/point + boutons -/+ ; stocke un float dans st.session_state[key]."""
+    cur = float(st.session_state.get(key, default) or 0.0)
+    cminus, cfield, cplus = st.columns([0.1, 0.8, 0.1])
+    with cminus:
+        if st.button("−", key=f"{key}_minus", use_container_width=True):
+            cur = max(min_value, cur - step)
+            st.session_state[key] = float(cur)
+            st.rerun()
+    with cfield:
+        s = st.text_input(label, value=f"{cur:.2f}", key=f"{key}_str")
+        try:
+            val = float(s.replace(",", "."))
+        except Exception:
+            val = cur
+        val = max(min_value, val)
+        st.session_state[key] = float(val)
+        cur = val
+    with cplus:
+        if st.button("+", key=f"{key}_plus", use_container_width=True):
+            cur = max(min_value, cur + step)
+            st.session_state[key] = float(cur)
+            st.rerun()
+    return float(st.session_state.get(key, default) or 0.0)
 
 def show():
     # ---------- État ----------
@@ -65,11 +105,8 @@ def show():
             _reset_module()
 
     with btn3:
-        # Enregistrer = téléchargement direct de l'état courant
-        payload = {
-            k: v for k, v in st.session_state.items()
-            if isinstance(v, (int, float, str, bool, list, dict, type(None)))
-        }
+        # Enregistrer = JSON filtré
+        payload = {k: st.session_state[k] for k in SAVE_KEYS if k in st.session_state}
         st.download_button(
             label="💾 Enregistrer",
             data=json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8"),
@@ -80,7 +117,6 @@ def show():
         )
 
     with btn4:
-        # Ouvrir = toggle + uploader ; charge le JSON et remplace l'état
         if st.button("📂 Ouvrir", use_container_width=True, key="btn_open_toggle"):
             st.session_state["show_open_uploader"] = not st.session_state.get("show_open_uploader", False)
 
@@ -88,11 +124,10 @@ def show():
             uploaded = st.file_uploader("Choisir un fichier JSON", type=["json"], label_visibility="collapsed", key="open_uploader")
             if uploaded is not None:
                 data = json.load(uploaded)
-                current_page = st.session_state.get("page")
-                st.session_state.clear()
-                st.session_state.update(data)
-                if current_page:
-                    st.session_state.page = current_page
+                # on ne charge que les clés autorisées
+                for k, v in data.items():
+                    if k in SAVE_KEYS:
+                        st.session_state[k] = v
                 st.session_state["show_open_uploader"] = False
                 st.success("Fichier chargé.")
                 st.rerun()
@@ -173,24 +208,19 @@ def show():
         st.markdown("### Sollicitations")
         cmom, cev  = st.columns(2)
         with cmom:
-            # <- décimales fluides
-            M_inf = st.number_input("Moment inférieur M (kNm)", min_value=0.0, value=0.0,
-                                    step=0.01, format="%.2f", key="M_inf")
+            M_inf = float_input_fr("Moment inférieur M (kNm)", key="M_inf", default=0.0, step=0.5, min_value=0.0)
             m_sup = st.checkbox("Ajouter un moment supérieur", key="ajouter_moment_sup")
             if m_sup:
-                M_sup = st.number_input("Moment supérieur M_sup (kNm)", min_value=0.0, value=0.0,
-                                        step=0.01, format="%.2f", key="M_sup")
+                M_sup = float_input_fr("Moment supérieur M_sup (kNm)", key="M_sup", default=0.0, step=0.5, min_value=0.0)
             else:
                 M_sup = 0.0
                 if "M_sup" in st.session_state:
                     del st.session_state["M_sup"]
         with cev:
-            V = st.number_input("Effort tranchant V (kN)", min_value=0.0, value=0.0,
-                                step=0.01, format="%.2f", key="V")
+            V = float_input_fr("Effort tranchant V (kN)", key="V", default=0.0, step=0.5, min_value=0.0)
             v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="ajouter_effort_reduit")
             if v_sup:
-                V_lim = st.number_input("Effort tranchant réduit V_réduit (kN)", min_value=0.0, value=0.0,
-                                        step=0.01, format="%.2f", key="V_lim")
+                V_lim = float_input_fr("Effort tranchant réduit V_réduit (kN)", key="V_lim", default=0.0, step=0.5, min_value=0.0)
             else:
                 V_lim = 0.0
                 if "V_lim" in st.session_state:
