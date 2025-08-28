@@ -56,7 +56,7 @@ def show():
         {"image": "Logo_poutre.png", "label": "Poutre", "page": "Poutre"},
         {"image": "Logo_dalle.png",  "label": "Dalle",  "page": "Dalle"},
         {"image": "Logo_age.png",    "label": "Age beton", "page": "Age béton"},
-        {"image": "Logo_poutre.png", "label": "Enrobage", "page": "Enrobage"},
+        {"image": "Logo_enrobage.png", "label": "Enrobage", "page": "Enrobage"},
         {"image": "Logo_poutre.png", "label": "Tableau armatures", "page": "Tableau armatures"},
     ]
     render_section("## 🧱 <span style='color:#FF6F61;'>Béton</span>", beton_tools, cols_per_row=5)
@@ -64,7 +64,7 @@ def show():
     # ====== LIGNE 2 — Acier ======
     acier_tools = [
         {"image": "Logo_poutre.png", "label": "Cornière", "page": "Cornière"},
-        {"image": "Logo_poutre.png", "label": "Choix profilé", "page": "Choix profilé"},
+        {"image": "Logo_poutrelle.png", "label": "Choix profilé", "page": "Choix profilé"},
         {"image": "Logo_poutre.png", "label": "Flambement", "page": "Flambement"},
         {"image": "Logo_poutre.png", "label": "Tableau profilés", "page": "Tableau profilés"},
     ]
@@ -72,7 +72,7 @@ def show():
 
     # ====== LIGNE 3 — Autres ======
     autres_tools = [
-        {"image": "Logo_poutre.png", "label": "Garde-corps", "page": "Garde-corps"},
-        {"image": "Logo_poutre.png", "label": "Poutre bois", "page": "Poutre bois"},  # ⬅️ nouveau
+        {"image": "Logo_gc.png", "label": "Garde-corps", "page": "Garde-corps"},
+        {"image": "Logo_poutre_bois.png", "label": "Poutre bois", "page": "Poutre bois"},  # ⬅️ nouveau
     ]
     render_section("## 🧩 <span style='color:#6C63FF;'>Autres</span>", autres_tools, cols_per_row=4)
