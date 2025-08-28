@@ -57,16 +57,16 @@ def show():
         {"image": "Logo_dalle.png",  "label": "Dalle",  "page": "Dalle"},
         {"image": "Logo_age.png",    "label": "Age beton", "page": "Age béton"},
         {"image": "Logo_enrobage.png", "label": "Enrobage", "page": "Enrobage"},
-        {"image": "Logo_poutre.png", "label": "Tableau armatures", "page": "Tableau armatures"},
+        {"image": "Logo_info.png", "label": "Tableau armatures", "page": "Tableau armatures"},
     ]
     render_section("## 🧱 <span style='color:#FF6F61;'>Béton</span>", beton_tools, cols_per_row=5)
 
     # ====== LIGNE 2 — Acier ======
     acier_tools = [
-        {"image": "Logo_poutre.png", "label": "Cornière", "page": "Cornière"},
+        {"image": "Logo_corniere.png", "label": "Cornière", "page": "Cornière"},
         {"image": "Logo_poutrelle.png", "label": "Choix profilé", "page": "Choix profilé"},
-        {"image": "Logo_poutre.png", "label": "Flambement", "page": "Flambement"},
-        {"image": "Logo_poutre.png", "label": "Tableau profilés", "page": "Tableau profilés"},
+        {"image": "Logo_flambement.png", "label": "Flambement", "page": "Flambement"},
+        {"image": "Logo_info.png", "label": "Tableau profilés", "page": "Tableau profilés"},
     ]
     render_section("## 🏗️ <span style='color:#FFA500;'>Acier</span>", acier_tools, cols_per_row=4)
 
