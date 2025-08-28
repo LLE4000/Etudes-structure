@@ -59,7 +59,7 @@ def show():
         {"image": "Logo_enrobage.png", "label": "Enrobage", "page": "Enrobage"},
         {"image": "Logo_info.png", "label": "Tableau armatures", "page": "Tableau armatures"},
     ]
-    render_section("## 🧱 <span style='color:#FF6F61;'>Béton</span>", beton_tools, cols_per_row=5)
+    render_section("##  <span style='color:#FF6F61;'>Béton</span>", beton_tools, cols_per_row=5)
 
     # ====== LIGNE 2 — Acier ======
     acier_tools = [
@@ -68,11 +68,11 @@ def show():
         {"image": "Logo_flambement.png", "label": "Flambement", "page": "Flambement"},
         {"image": "Logo_info.png", "label": "Tableau profilés", "page": "Tableau profilés"},
     ]
-    render_section("## 🏗️ <span style='color:#FFA500;'>Acier</span>", acier_tools, cols_per_row=4)
+    render_section("##  <span style='color:#FFA500;'>Acier</span>", acier_tools, cols_per_row=4)
 
     # ====== LIGNE 3 — Autres ======
     autres_tools = [
         {"image": "Logo_gc.png", "label": "Garde-corps", "page": "Garde-corps"},
         {"image": "Logo_poutre_bois.png", "label": "Poutre bois", "page": "Poutre bois"},  # ⬅️ nouveau
     ]
-    render_section("## 🧩 <span style='color:#6C63FF;'>Autres</span>", autres_tools, cols_per_row=4)
+    render_section("##  <span style='color:#6C63FF;'>Autres</span>", autres_tools, cols_per_row=4)
