@@ -4,8 +4,9 @@ export_pdf.py
 Rapport de dimensionnement – Poutre BA (compact, lisible, tout en noir)
 - Nom de fichier : PRO_PARTIE_#Indice_AAAAMMJJ.pdf
 - Titres en gras (principaux en gras + soulignés)
-- Formules LaTeX numériques (valeurs intégrées), images proportionnelles (+20%)
-- Colonne de validation à droite (✓ / ✗ en noir)
+- Formules LaTeX numériques avec résultat dans la même équation
+- Images proportionnelles (+20%)
+- Colonne de validation à droite (OK / NON)
 """
 
 from reportlab.lib.pagesizes import A4
@@ -26,11 +27,11 @@ from datetime import datetime
 
 # ========================== Constantes ===============================
 
-# Si ton environnement n’affiche pas ✓/✗, mets plutôt "OK" / "NON"
-ICON_OK  = "✓"
-ICON_NOK = "✗"
+# Symboles de validation compatibles partout
+ICON_OK  = "OK"
+ICON_NOK = "NON"
 
-# Largeur (en mm) de l’image d’équation (base 32 mm * 1.2 = 38.4 mm ≈ 38/40 mm)
+# Largeur (en mm) des images d’équations (~120% de 32 mm)
 EQ_IMG_WIDTH_MM = 38
 
 # ============================ Utils =================================
@@ -127,7 +128,6 @@ def load_beton_data():
 def eq_img(tex_numeric, tmpdir, img_width_mm=EQ_IMG_WIDTH_MM):
     """
     Image LaTeX NUMÉRIQUE proportionnelle (pas d’étirement).
-    Taille par défaut ≈ 120% de la base.
     """
     pth = os.path.join(tmpdir, f"eq_{abs(hash(tex_numeric))}.png")
     render_equation(tex_numeric, pth, fontsize=11, pad=0.05)
@@ -141,9 +141,9 @@ def status_row(text_html, ok_bool, content_width, styles):
     """
     Ligne 2 colonnes : (texte) | (symbole)
     - tout en noir
-    - symbole à droite (✓ / ✗)
+    - symbole à droite (OK / NON)
     """
-    col_icon = 8*mm
+    col_icon = 10*mm
     col_text = content_width - col_icon
     tbl = Table(
         [[Paragraph(text_html, styles["Eq"]), Paragraph(icon(ok_bool), styles["Eq"])]],
@@ -156,7 +156,6 @@ def status_row(text_html, ok_bool, content_width, styles):
         ("RIGHTPADDING", (0,0), (-1,-1), 0),
         ("TOPPADDING", (0,0), (-1,-1), 0),
         ("BOTTOMPADDING", (0,0), (-1,-1), 0),
-        # aucune bordure/couleur — tout en noir
     ]))
     return tbl
 
@@ -249,13 +248,14 @@ def generer_rapport_pdf(
         flow.append(Paragraph("<u>Caractéristiques de la poutre</u>", S["Hmain"]))
         flow.append(Table(
             [
-                ["Classe de béton", beton, "Acier (fyk)", f"{fyk} N/mm²"],
+                ["Classe de béton", beton, "Armature", f"{fyk} N/mm²"],
                 ["Largeur b", f"{fr(b,1)} cm", "Hauteur h", f"{fr(h,1)} cm"],
                 ["Enrobage", f"{fr(enrobage,1)} cm", "Hauteur utile d", f"{fr(d_utile,1)} cm"],
             ],
             colWidths=[34*mm, content_width/2-34*mm, 34*mm, content_width/2-34*mm],
             style=TableStyle([
                 ("GRID", (0,0), (-1,-1), 0.25, colors.black),
+                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f6f6f6")),  # première ligne en gris
                 ("FONTNAME", (0,0), (-1,-1), "Times-Roman"),
                 ("FONTSIZE", (0,0), (-1,-1), 9.5),
                 ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
@@ -269,16 +269,21 @@ def generer_rapport_pdf(
         # Vérification de la hauteur utile
         flow.append(Paragraph("Vérification de la hauteur utile", S["Hnorm"]))
         tex_hmin = (
-            r"h_\mathrm{min}=\sqrt{\frac{" + fr(M_max,2).replace(",", ".") +
-            r"\cdot 10^{6}}{" + fr(alpha_b,2).replace(",", ".") + r"\cdot " +
-            fr(b,1).replace(",", ".") + r"\cdot 10\cdot " + fr(mu_val,1).replace(",", ".") +
-            r"}}/10" + tex_unit("cm")
+            r"h_\mathrm{min}=\sqrt{\frac{"
+            + fr(M_max,2).replace(",", ".")
+            + r"\cdot 10^{6}}{"
+            + fr(alpha_b,2).replace(",", ".")
+            + r"\cdot "
+            + fr(b,1).replace(",", ".")
+            + r"\cdot 10\cdot "
+            + fr(mu_val,1).replace(",", ".")
+            + r"}}/10"
+            + r" = " + fr(hmin,1) + tex_unit("cm")
         )
         flow.append(eq_img(tex_hmin, tmpdir))
-        flow.append(Paragraph(f"h_min = {fr(hmin,1)} cm", S["Eq"]))
         ok_h = (hmin + enrobage) <= h
         flow.append(status_row(
-            f"h_min + enrobage = {fr(hmin+enrobage,1)} cm ≤ h = {fr(h,1)} cm — {'ok' if ok_h else 'non'}",
+            f"h_min + enrobage = {fr(hmin+enrobage,1)} cm ≤ h = {fr(h,1)} cm",
             ok_h, content_width, S
         ))
         flow.append(Spacer(1, 3))
@@ -289,18 +294,22 @@ def generer_rapport_pdf(
         # Armatures inférieures
         flow.append(Paragraph("Armatures inférieures", S["Hsub"]))
         tex_as_inf = (
-            r"A_{s,\mathrm{inf}}=\dfrac{" + fr(M_inf,2).replace(",", ".") +
-            r"\cdot 10^{6}}{" + fr(fyd,1).replace(",", ".") + r"\cdot 0.9\cdot " +
-            fr(d_utile,1).replace(",", ".") + r"\cdot 10}" + tex_unit("mm^2")
+            r"A_{s,\mathrm{inf}}=\dfrac{"
+            + fr(M_inf,2).replace(",", ".")
+            + r"\cdot 10^{6}}{"
+            + fr(fyd,1).replace(",", ".")
+            + r"\cdot 0.9\cdot "
+            + fr(d_utile,1).replace(",", ".")
+            + r"\cdot 10}"
+            + r" = " + fr(As_inf_req,1) + tex_unit("mm^2")
         )
         flow.append(eq_img(tex_as_inf, tmpdir))
-        flow.append(Paragraph(f"A_s,inf = {fr(As_inf_req,1)} mm²", S["Eq"]))
         flow.append(Paragraph(f"A_s,min = {fr(As_min,1)} mm² ; A_s,max = {fr(As_max,1)} mm²", S["Small"]))
         if n_as_inf and o_as_inf:
             As_inf_ch = aire_barres(n_as_inf, o_as_inf)
             ok_inf = (As_min <= As_inf_ch <= As_max) and (As_inf_ch >= As_inf_req)
             flow.append(status_row(
-                f"On prend : {int(n_as_inf)}Ø{int(o_as_inf)} ({fr(As_inf_ch,1)} mm²) — {'ok' if ok_inf else 'non'}",
+                f"On prend : {int(n_as_inf)}Ø{int(o_as_inf)} ({fr(As_inf_ch,1)} mm²)",
                 ok_inf, content_width, S
             ))
         flow.append(Spacer(1, 2))
@@ -309,18 +318,22 @@ def generer_rapport_pdf(
         if M_sup and M_sup > 0:
             flow.append(Paragraph("Armatures supérieures", S["Hsub"]))
             tex_as_sup = (
-                r"A_{s,\mathrm{sup}}=\dfrac{" + fr(M_sup,2).replace(",", ".") +
-                r"\cdot 10^{6}}{" + fr(fyd,1).replace(",", ".") + r"\cdot 0.9\cdot " +
-                fr(d_utile,1).replace(",", ".") + r"\cdot 10}" + tex_unit("mm^2")
+                r"A_{s,\mathrm{sup}}=\dfrac{"
+                + fr(M_sup,2).replace(",", ".")
+                + r"\cdot 10^{6}}{"
+                + fr(fyd,1).replace(",", ".")
+                + r"\cdot 0.9\cdot "
+                + fr(d_utile,1).replace(",", ".")
+                + r"\cdot 10}"
+                + r" = " + fr(As_sup_req,1) + tex_unit("mm^2")
             )
             flow.append(eq_img(tex_as_sup, tmpdir))
-            flow.append(Paragraph(f"A_s,sup = {fr(As_sup_req,1)} mm²", S["Eq"]))
             flow.append(Paragraph(f"A_s,min = {fr(As_min,1)} mm² ; A_s,max = {fr(As_max,1)} mm²", S["Small"]))
             if n_as_sup and o_as_sup:
                 As_sup_ch = aire_barres(n_as_sup, o_as_sup)
                 ok_sup = (As_min <= As_sup_ch <= As_max) and (As_sup_ch >= As_sup_req)
                 flow.append(status_row(
-                    f"On prend : {int(n_as_sup)}Ø{int(o_as_sup)} ({fr(As_sup_ch,1)} mm²) — {'ok' if ok_sup else 'non'}",
+                    f"On prend : {int(n_as_sup)}Ø{int(o_as_sup)} ({fr(As_sup_ch,1)} mm²)",
                     ok_sup, content_width, S
                 ))
             flow.append(Spacer(1, 3))
@@ -329,12 +342,16 @@ def generer_rapport_pdf(
         if V and V > 0:
             flow.append(Paragraph("Vérification de l'effort tranchant", S["Hnorm"]))
             tex_tau = (
-                r"\tau=\dfrac{" + fr(V,2).replace(",", ".") +
-                r"\cdot 10^{3}}{0.75\cdot " + fr(b,1).replace(",", ".") +
-                r"\cdot " + fr(h,1).replace(",", ".") + r"\cdot 100}" + tex_unit("N/mm^{2}")
+                r"\tau=\dfrac{"
+                + fr(V,2).replace(",", ".")
+                + r"\cdot 10^{3}}{0.75\cdot "
+                + fr(b,1).replace(",", ".")
+                + r"\cdot "
+                + fr(h,1).replace(",", ".")
+                + r"\cdot 100}"
+                + r" = " + fr(tau,2) + tex_unit("N/mm^{2}")
             )
             flow.append(eq_img(tex_tau, tmpdir))
-            flow.append(Paragraph(f"τ = {fr(tau,2)} N/mm²", S["Eq"]))
             # Seuil pertinent et statut
             if tau <= tau_1:
                 lim_lab, lim_val, ok_tau = "τ_adm I", tau_1, True
@@ -344,10 +361,11 @@ def generer_rapport_pdf(
                 lim_lab, lim_val, ok_tau = "τ_adm IV", tau_4, True
             else:
                 lim_lab, lim_val, ok_tau = "τ_adm IV", tau_4, False
-            comp = (f"τ = {fr(tau,2)} N/mm² < {lim_lab} = {fr(lim_val,2)} N/mm² — {'ok' if ok_tau else 'non'}"
-                    if ok_tau else
-                    f"τ = {fr(tau,2)} N/mm² > {lim_lab} = {fr(lim_val,2)} N/mm² — non")
-            flow.append(status_row(comp, ok_tau, content_width, S))
+            flow.append(status_row(
+                f"τ = {fr(tau,2)} N/mm² < {lim_lab} = {fr(lim_val,2)} N/mm²" if ok_tau
+                else f"τ = {fr(tau,2)} N/mm² > {lim_lab} = {fr(lim_val,2)} N/mm²",
+                ok_tau, content_width, S
+            ))
             flow.append(Spacer(1, 3))
 
             # Calcul des étriers
@@ -358,18 +376,22 @@ def generer_rapport_pdf(
                 Ast_e = aire_barres(1, 8)  # valeur indicative si non fournie
             s_th = Ast_e * fyd * d_utile * 10 / (10 * V * 1e3)
             tex_s = (
-                r"s_\mathrm{th}=\dfrac{" + fr(Ast_e,1).replace(",", ".") +
-                r"\cdot " + fr(fyd,1).replace(",", ".") +
-                r"\cdot " + fr(d_utile,1).replace(",", ".") +
-                r"\cdot 10}{10\cdot " + fr(V,2).replace(",", ".") +
-                r"\cdot 10^{3}}" + tex_unit("cm")
+                r"s_\mathrm{th}=\dfrac{"
+                + fr(Ast_e,1).replace(",", ".")
+                + r"\cdot "
+                + fr(fyd,1).replace(",", ".")
+                + r"\cdot "
+                + fr(d_utile,1).replace(",", ".")
+                + r"\cdot 10}{10\cdot "
+                + fr(V,2).replace(",", ".")
+                + r"\cdot 10^{3}}"
+                + r" = " + fr(s_th,1) + tex_unit("cm")
             )
             flow.append(eq_img(tex_s, tmpdir))
-            flow.append(Paragraph(f"s_th = {fr(s_th,1)} cm", S["Eq"]))
             if n_etriers and o_etrier and pas_etrier is not None:
                 ok_pas = pas_etrier <= s_th
                 flow.append(status_row(
-                    f"On prend : Ø{int(o_etrier)} – {int(n_etriers)} brin(s) – pas {fr(pas_etrier,1)} cm (s_th = {fr(s_th,1)} cm) — {'ok' if ok_pas else 'non'}",
+                    f"On prend : Ø{int(o_etrier)} – {int(n_etriers)} brin(s) – pas {fr(pas_etrier,1)} cm (s_th = {fr(s_th,1)} cm)",
                     ok_pas, content_width, S
                 ))
             flow.append(Spacer(1, 3))
@@ -383,18 +405,22 @@ def generer_rapport_pdf(
                 Ast_er = aire_barres(n_etriers or 1, o_etrier or 8)
             s_thr = Ast_er * fyd * d_utile * 10 / (10 * V_lim * 1e3)
             tex_sr = (
-                r"s_{\mathrm{th},r}=\dfrac{" + fr(Ast_er,1).replace(",", ".") +
-                r"\cdot " + fr(fyd,1).replace(",", ".") +
-                r"\cdot " + fr(d_utile,1).replace(",", ".") +
-                r"\cdot 10}{10\cdot " + fr(V_lim,2).replace(",", ".") +
-                r"\cdot 10^{3}}" + tex_unit("cm")
+                r"s_{\mathrm{th},r}=\dfrac{"
+                + fr(Ast_er,1).replace(",", ".")
+                + r"\cdot "
+                + fr(fyd,1).replace(",", ".")
+                + r"\cdot "
+                + fr(d_utile,1).replace(",", ".")
+                + r"\cdot 10}{10\cdot "
+                + fr(V_lim,2).replace(",", ".")
+                + r"\cdot 10^{3}}"
+                + r" = " + fr(s_thr,1) + tex_unit("cm")
             )
             flow.append(eq_img(tex_sr, tmpdir))
-            flow.append(Paragraph(f"s_th,r = {fr(s_thr,1)} cm", S["Eq"]))
             if n_etriers_r and o_etrier_r and pas_etrier_r is not None:
                 ok_pas_r = pas_etrier_r <= s_thr
                 flow.append(status_row(
-                    f"On prend : Ø{int(o_etrier_r)} – {int(n_etriers_r)} brin(s) – pas {fr(pas_etrier_r,1)} cm (s_th,r = {fr(s_thr,1)} cm) — {'ok' if ok_pas_r else 'non'}",
+                    f"On prend : Ø{int(o_etrier_r)} – {int(n_etriers_r)} brin(s) – pas {fr(pas_etrier_r,1)} cm (s_th,r = {fr(s_thr,1)} cm)",
                     ok_pas_r, content_width, S
                 ))
 
