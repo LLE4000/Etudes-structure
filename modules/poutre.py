@@ -120,7 +120,9 @@ def show():
     with btn5:
         if st.button("📄 Générer PDF", use_container_width=True, key="btn_pdf"):
             from modules.export_pdf import generer_rapport_pdf
+
             fichier_pdf = generer_rapport_pdf(
+                # --- en-tête / géométrie / sollicitations
                 nom_projet=st.session_state.get("nom_projet", ""),
                 partie=st.session_state.get("partie", ""),
                 date=st.session_state.get("date", ""),
@@ -130,11 +132,29 @@ def show():
                 b=st.session_state.get("b", 0),
                 h=st.session_state.get("h", 0),
                 enrobage=st.session_state.get("enrobage", 0),
-                M_inf=st.session_state.get("M_inf", 0),
-                M_sup=st.session_state.get("M_sup", 0),
-                V=st.session_state.get("V", 0),
-                V_lim=st.session_state.get("V_lim", 0),
+                M_inf=st.session_state.get("M_inf", 0.0),
+                M_sup=st.session_state.get("M_sup", 0.0),
+                V=st.session_state.get("V", 0.0),
+                V_lim=st.session_state.get("V_lim", 0.0),
+            
+                # --- CHOIX (→ affichés dans le PDF)
+                # armatures inférieures / supérieures
+                n_as_inf=st.session_state.get("n_as_inf"),
+                o_as_inf=st.session_state.get("ø_as_inf"),   # mappe la clé 'ø_*' vers 'o_*'
+                n_as_sup=st.session_state.get("n_as_sup"),
+                o_as_sup=st.session_state.get("ø_as_sup"),
+            
+                # étriers (tranchant V)
+                n_etriers=st.session_state.get("n_etriers"),
+                o_etrier=st.session_state.get("ø_etrier"),
+                pas_etrier=st.session_state.get("pas_etrier"),
+            
+                # étriers réduits (V_lim)
+                n_etriers_r=st.session_state.get("n_etriers_r"),
+                o_etrier_r=st.session_state.get("ø_etrier_r"),
+                pas_etrier_r=st.session_state.get("pas_etrier_r"),
             )
+
             with open(fichier_pdf, "rb") as f:
                 st.download_button(
                     label="⬇️ Télécharger le rapport PDF",
