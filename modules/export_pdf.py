@@ -1,4 +1,4 @@
--# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 export_pdf.py
 Rapport de dimensionnement – Poutre BA (aligné, propre)
