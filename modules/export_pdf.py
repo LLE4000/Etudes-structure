@@ -131,7 +131,7 @@ def eq_img(tex_numeric, tmpdir, img_width_mm=EQ_IMG_WIDTH_MM):
     render_equation(tex_numeric, pth, fontsize=13, pad=0.05)  # ~120%
     with PILImage.open(pth) as im:
         w, h = im.size
-    target_w = img_width_mm * mm * 1.2  # +20% largeur
+    target_w = img_width_mm * mm * 1.5  
     target_h = target_w * h / w          # hauteur suit proportionnellement
     return Image(pth, width=target_w, height=target_h, hAlign="LEFT")
 
