@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-export_pdf.py — Rapport Poutre BA (mise en page 4 colonnes, équations compactes)
+export_pdf.py — Rapport Poutre BA (mise en page 4 colonnes, équations compactes et robustes)
 
 Points clés :
-- h_min : cadre compact (moins haut), padding droit augmenté pour ne pas chevaucher “cm”.
+- h_min : cadre compact (padding réduit), padding droit augmenté pour ne pas toucher “cm”.
   Dénominateur = kb(2 déc.) · b(mm, 0 déc.) · μ_a(4 déc.) — SANS '·100'.
   Calcul h_min cohérent avec l'affichage (kb utilisé réellement).
-- Armatures : affichage des constantes entières sans décimales -> fyd affiché '333' (pas 333,3) et d(mm) '500'.
-- Section 3.2 : 1 ligne sur toute la largeur en 4 colonnes :
-    [Arm sup | OK/NON | Arm inf | OK/NON]
-  Puis “Vérification de l’effort tranchant”.
-  Puis à nouveau 4 colonnes :
-    [Étriers | OK/NON | Étriers réduits | OK/NON]
-- Tolérant aux entrées Streamlit avec virgules (ex. "35,0") grâce à to_float / to_int.
+- Armatures : affichage des constantes entières sans décimales -> fyd '333' plutôt que 333,3 ; d(mm) '500'.
+- Section 3.2 : 4 colonnes [Arm sup | OK/NON | Arm inf | OK/NON], puis
+  "Vérification de l’effort tranchant", puis 4 colonnes [Étriers | OK/NON | Étriers réduits | OK/NON].
+- Entrées Streamlit tolérées avec virgules (ex. "35,0").
+- SUPPRESSION de PILImage.open sur les équations + Fallback texte si rendu PNG échoue.
 """
 
 from reportlab.lib.pagesizes import A4
@@ -30,7 +28,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from PIL import Image as PILImage
 import json, os, math, tempfile, shutil
 from datetime import datetime
 
@@ -114,9 +111,6 @@ def render_equation(tex_expr, out_path, fontsize=MATH_FONTSIZE, pad=0.05):
     plt.close(fig)
     return out_path
 
-def aire_barres(n, phi):
-    return float(n) * math.pi * (float(phi)/2.0)**2
-
 def register_fonts():
     try:
         pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSerif.ttf"))
@@ -173,29 +167,35 @@ def status_row(html_text, ok_bool, styles, content_width, style_name="Eq"):
     return text_row(html_text, styles, content_width, style_name,
                     ICON_OK if ok_bool else ICON_NOK)
 
-def eq_box(img_path, padd=(3,6,1,1)):
-    """Cadre autour de l'équation avec padding (L, R, T, B)."""
+def _boxed(flowable, width, padd=(3,6,1,1)):
+    """Encadre un flowable dans un tableau avec padding (L, R, T, B)."""
     left, right, top, bottom = padd
-    with PILImage.open(img_path) as im:
-        w, h = im.size
-    target_w = EQ_IMG_WIDTH_MM * mm * EQ_IMG_SCALE
-    target_h = target_w * h / w
-    img = Image(img_path, width=target_w, height=target_h, hAlign="LEFT")
-    box = Table([[img]], colWidths=[target_w])
+    box = Table([[flowable]], colWidths=[width])
     box.setStyle(TableStyle([
         ("BOX", (0,0), (-1,-1), 0.75, colors.black),
         ("LEFTPADDING",  (0,0), (-1,-1), left),
-        ("RIGHTPADDING", (0,0), (-1,-1), right),   # plus grand pour ne pas "taper" le 'cm'
-        ("TOPPADDING",   (0,0), (-1,-1), top),     # faible pour réduire la hauteur du cadre
-        ("BOTTOMPADDING",(0,0), (-1,-1), bottom),  # idem
+        ("RIGHTPADDING", (0,0), (-1,-1), right),   # plus grand pour ne pas toucher 'cm'
+        ("TOPPADDING",   (0,0), (-1,-1), top),     # réduit pour baisser la hauteur
+        ("BOTTOMPADDING",(0,0), (-1,-1), bottom),
         ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
     ]))
-    return box, target_w
+    return box
 
 def eq_row(tex_numeric, tmpdir, styles, content_width, icon_text="", padd=(3,6,1,1)):
+    """
+    Rend l'équation en PNG, l'insère si possible ; sinon fallback texte encadré.
+    AUCUN appel direct à PIL ici.
+    """
     img_path = os.path.join(tmpdir, f"eq_{abs(hash(tex_numeric))}.png")
-    render_equation(tex_numeric, img_path, fontsize=MATH_FONTSIZE, pad=0.05)
-    box, _ = eq_box(img_path, padd=padd)
+    target_w = EQ_IMG_WIDTH_MM * mm * EQ_IMG_SCALE
+    try:
+        render_equation(tex_numeric, img_path, fontsize=MATH_FONTSIZE, pad=0.05)
+        img = Image(img_path, width=target_w)  # hauteur auto, conserve l'aspect
+        box = _boxed(img, target_w, padd=padd)
+    except Exception:
+        # Fallback : texte LaTeX entre $...$ (sans rendu image) pour garantir le PDF
+        fallback = Paragraph(f"${tex_numeric}$", styles["Eq"])
+        box = _boxed(fallback, target_w, padd=padd)
     return make_row(box, styles, content_width, icon_text)
 
 
@@ -231,15 +231,10 @@ def generer_rapport_pdf(
     n_branches_etrier_r=1, o_etrier_r=None, pas_etrier_r=None,
     **kwargs,
 ):
-    # --- normalisation systématique des entrées ---
-    b = to_float(b)
-    h = to_float(h)
-    enrobage = to_float(enrobage)
-
-    M_inf = to_float(M_inf)
-    M_sup = to_float(M_sup)
-    V     = to_float(V)
-    V_lim = to_float(V_lim)
+    # --- normalisation systématique des entrées (accepte virgules) ---
+    b = to_float(b); h = to_float(h); enrobage = to_float(enrobage)
+    M_inf = to_float(M_inf); M_sup = to_float(M_sup)
+    V = to_float(V); V_lim = to_float(V_lim)
 
     n_as_inf = to_int(n_as_inf) if n_as_inf is not None else None
     o_as_inf = to_int(o_as_inf) if o_as_inf is not None else None
@@ -260,7 +255,7 @@ def generer_rapport_pdf(
     alpha_b  = to_float(d.get("alpha_b", 0.72))
     mu_val   = to_float(d.get(f"mu_a{int(to_float(fyk))}", d.get("mu_a500", 0.1709)))
     kb       = d.get("kb", round(alpha_b*18.0, 2))  # valeur affichée & utilisée
-    fyd      = int(to_float(fyk)) / 1.5             # valeur exacte pour calcul ; affichage sans déc.
+    fyd      = int(to_float(fyk)) / 1.5             # exact pour calcul ; affichage sans déc.
 
     # Géométrie (cm) + mm
     d_utile = h - enrobage
@@ -268,7 +263,7 @@ def generer_rapport_pdf(
     h_mm = h * 10.0
     d_mm = d_utile * 10.0
 
-    # Calculs
+    # Calculs principaux
     M_max = max(float(M_inf or 0.0), float(M_sup or 0.0))
     # h_min basé sur kb · b(mm) · μa — cohérent avec l'affichage (pas de '·100')
     hmin = math.sqrt((M_max*1e6)/(kb*b_mm*mu_val))/10.0 if M_max > 0 else 0.0
@@ -312,13 +307,12 @@ def generer_rapport_pdf(
                 + as_int_str(fyd) + r"\cdot 0.9\cdot " + as_int_str(d_mm) + r"\cdot 10}"
                 + r"} = " + num1(As_req) + r"\ \mathrm{mm^2}"
             )
-            # cadre compact dans les colonnes (padding droit 6)
             parts.append(eq_row(tex, tmpdir, S, content_width/2, icon_text="", padd=(3,6,1,1)))
             parts.append(Paragraph(f"A<sub>s,min</sub> = {fr0(As_min)} mm²", S["Eq"]))
             parts.append(Paragraph(f"A<sub>s,max</sub> = {fr0(As_max)} mm²", S["Eq"]))
             ok_val = None
             if n_as and o_as:
-                As_ch = aire_barres(n_as, o_as)
+                As_ch = float(n_as) * math.pi * (float(o_as)/2.0)**2
                 ok_val = (As_min <= As_ch <= As_max) and (As_ch >= As_req)
                 parts.append(Paragraph(
                     f"On prend : {int(n_as)}Ø{int(o_as)} → {fr0(As_ch)} mm²",
@@ -334,7 +328,7 @@ def generer_rapport_pdf(
         if Vval and Vval > 0:
             n_br_i = int(n_br or 1)
             phi_i  = int(phi or 8)
-            A_st_val = aire_barres(n_br_i, phi_i)
+            A_st_val = float(n_br_i) * math.pi * (float(phi_i)/2.0)**2
             s_th = (A_st_val * fyd * d_mm) / (Vval * 1e4)
             A_dev = f"{n_br_i}\\cdot\\pi\\cdot {phi_i}^{2}/4"
             texs = (
@@ -439,8 +433,12 @@ def generer_rapport_pdf(
 
         # 3.2 Armatures — 4 colonnes (sup | OK | inf | OK)
         flow.append(Paragraph("3.2 Calcul des armatures", S["Hnorm"]))
-        bloc_sup, ok_sup = bloc_armatures(M_sup, As_sup_req, "Armatures supérieures", n_as_sup, o_as_sup) if (M_sup and M_sup > 0) else (Paragraph("—", S["Center"]), None)
-        bloc_inf, ok_inf = bloc_armatures(M_inf, As_inf_req, "Armatures inférieures", n_as_inf, o_as_inf) if (M_inf and M_inf > 0) else (Paragraph("—", S["Center"]), None)
+        def bloc_arm(M_val, As_req, titre, n_as, o_as):
+            return bloc_armatures(M_val, As_req, titre, n_as, o_as)
+
+        bloc_sup, ok_sup = bloc_arm(M_sup, As_sup_req, "Armatures supérieures", n_as_sup, o_as_sup) if (M_sup and M_sup > 0) else (Paragraph("—", S["Center"]), None)
+        bloc_inf, ok_inf = bloc_arm(M_inf, As_inf_req, "Armatures inférieures", n_as_inf, o_as_inf) if (M_inf and M_inf > 0) else (Paragraph("—", S["Center"]), None)
+
         t_arm = Table(
             [[bloc_sup, Paragraph(ICON_OK if ok_sup else ICON_NOK if ok_sup is not None else "—", S["Center"]),
               bloc_inf, Paragraph(ICON_OK if ok_inf else ICON_NOK if ok_inf is not None else "—", S["Center"])]],
