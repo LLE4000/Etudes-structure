@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-export_pdf.py — Rapport Poutre BA (aligné & unités mm)
-- Sections & sollicitations numérotées (cf. ta version précédente)
-- μ_a et α_b sur 4 décimales
-- Dimensions en mm et fyd affichées sans décimales dans les équations
-- s_th : section transversale développée n·π·φ²/4 (pas un nombre brut)
+export_pdf.py — Rapport Poutre BA (mise en page 4 colonnes)
+- hmin : cadre compact + dénominateur = kb(2 déc.) · b(mm, 0 déc.) · μa(4 déc.) — sans '·100'
+- Armatures : affichages entiers sans décimales (ex. 333 → pas 333.3 ; 500 → pas 500.0)
+- 3.2 présenté sur une ligne en 4 colonnes (sup | OK/NON | inf | OK/NON)
+- Puis vérification du cisaillement et 4 colonnes (étriers | OK/NON | réduits | OK/NON)
 """
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
@@ -57,6 +57,14 @@ def num1(x): return num_from_fr(fr1(x))
 def num2(x): return num_from_fr(fr2(x))
 def num4(x): return num_from_fr(fr4(x))
 
+def as_int_str(x):
+    """Affiche sans décimales si la valeur est 'entière attendue' (ex. 333.3 -> '333')."""
+    try:
+        v = float(x)
+        return num0(round(v))
+    except Exception:
+        return num0(x)
+
 def render_equation(tex_expr, out_path, fontsize=MATH_FONTSIZE, pad=0.05):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     fig = plt.figure(figsize=(1, 1), dpi=250)
@@ -94,13 +102,14 @@ def get_styles():
         "Hsub": ParagraphStyle("Hsub", parent=ss["BodyText"],
                                fontName=base_b, fontSize=9.6, leading=12.5,
                                spaceBefore=4, spaceAfter=3, textColor=black),
-        # lignes techniques aérées
         "Eq": ParagraphStyle("Eq", parent=ss["BodyText"],
                              fontName=base, fontSize=9.5, leading=18, textColor=black),
         "Blue": ParagraphStyle("Blue", parent=ss["BodyText"],
                                fontName=base_b, fontSize=9.5, leading=18, textColor=BLUE_DARK),
         "Small": ParagraphStyle("Small", parent=ss["BodyText"],
                                 fontName=base, fontSize=9, leading=11, textColor=black),
+        "Center": ParagraphStyle("Center", parent=ss["BodyText"],
+                                 fontName=base, fontSize=9.5, leading=12, alignment=1, textColor=black),
     }
 
 def make_row(left_flowable, styles, content_width, icon_text=""):
@@ -125,24 +134,29 @@ def status_row(html_text, ok_bool, styles, content_width, style_name="Eq"):
     return text_row(html_text, styles, content_width, style_name,
                     ICON_OK if ok_bool else ICON_NOK)
 
-def eq_row(tex_numeric, tmpdir, styles, content_width, icon_text=""):
-    img_path = os.path.join(tmpdir, f"eq_{abs(hash(tex_numeric))}.png")
-    render_equation(tex_numeric, img_path, fontsize=MATH_FONTSIZE, pad=0.05)
+def eq_box(img_path, padd=(3,6,1,1)):
+    """Cadre autour de l'équation avec padding (L, R, T, B)."""
+    left, right, top, bottom = padd
     with PILImage.open(img_path) as im:
         w, h = im.size
     target_w = EQ_IMG_WIDTH_MM * mm * EQ_IMG_SCALE
     target_h = target_w * h / w
     img = Image(img_path, width=target_w, height=target_h, hAlign="LEFT")
-    # Cadre noir autour de l'équation
     box = Table([[img]], colWidths=[target_w])
     box.setStyle(TableStyle([
         ("BOX", (0,0), (-1,-1), 0.75, colors.black),
-        ("LEFTPADDING",  (0,0), (-1,-1), 3),
-        ("RIGHTPADDING", (0,0), (-1,-1), 3),
-        ("TOPPADDING",   (0,0), (-1,-1), 2),
-        ("BOTTOMPADDING",(0,0), (-1,-1), 2),
+        ("LEFTPADDING",  (0,0), (-1,-1), left),
+        ("RIGHTPADDING", (0,0), (-1,-1), right),
+        ("TOPPADDING",   (0,0), (-1,-1), top),
+        ("BOTTOMPADDING",(0,0), (-1,-1), bottom),
         ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
     ]))
+    return box, target_w
+
+def eq_row(tex_numeric, tmpdir, styles, content_width, icon_text="", padd=(3,3,2,2)):
+    img_path = os.path.join(tmpdir, f"eq_{abs(hash(tex_numeric))}.png")
+    render_equation(tex_numeric, img_path, fontsize=MATH_FONTSIZE, pad=0.05)
+    box, _ = eq_box(img_path, padd=padd)
     return make_row(box, styles, content_width, icon_text)
 
 # =============================== Données ==============================
@@ -175,7 +189,8 @@ def generer_rapport_pdf(
     fck_cube = d.get("fck_cube", 30)
     alpha_b  = d.get("alpha_b", 0.72)
     mu_val   = d.get(f"mu_a{fyk}", 0.1700)   # ex. 0.1709
-    fyd      = int(fyk) / 1.5               # sera affiché en 0 décimale
+    kb       = d.get("kb", round(alpha_b*18.0, 2))  # coefficient kb affiché et utilisé (ex. 12.96)
+    fyd      = int(fyk) / 1.5               # affiché sans décimales
 
     # Géométrie (cm) + mm
     d_utile = h - enrobage
@@ -185,7 +200,8 @@ def generer_rapport_pdf(
 
     # Calculs
     M_max   = max(float(M_inf or 0.0), float(M_sup or 0.0))
-    hmin    = math.sqrt((M_max*1e6)/(alpha_b*b*10*mu_val))/10.0 if M_max>0 else 0.0
+    # hmin basé sur 'kb' (plus de facteur *100) — cohérent avec l'affichage
+    hmin    = math.sqrt((M_max*1e6)/(kb*b_mm*mu_val))/10.0 if M_max>0 else 0.0
 
     As_min      = 0.0013 * b * h * 1e2
     As_max      = 0.04   * b * h * 1e2
@@ -212,6 +228,56 @@ def generer_rapport_pdf(
     S = get_styles()
     flow = []
     tmpdir = tempfile.mkdtemp(prefix="pdf_eq_")
+
+    # Helpers “bloc” pour la mise en page 4 colonnes
+    def bloc_armatures(M_val, As_req, titre, n_as, o_as):
+        parts = []
+        parts.append(Paragraph(titre, S["Hsub"]))
+        tex = (
+            r"A_{s}=\dfrac{"
+            + num2(M_val) + r"\cdot 10^{6}}{"
+            + as_int_str(fyd) + r"\cdot 0.9\cdot " + as_int_str(d_mm) + r"\cdot 10}"
+            + r"} = " + num1(As_req) + r"\ \mathrm{mm^2}"
+        )
+        # cadre compact pour les équations dans les colonnes
+        parts.append(eq_row(tex, tmpdir, S, content_width/2, icon_text="", padd=(3,6,1,1)))
+        parts.append(Paragraph(f"A<sub>s,min</sub> = {fr0(As_min)} mm²", S["Eq"]))
+        parts.append(Paragraph(f"A<sub>s,max</sub> = {fr0(As_max)} mm²", S["Eq"]))
+        ok_val = None
+        if n_as and o_as:
+            As_ch = aire_barres(n_as, o_as)
+            ok_val = (As_min <= As_ch <= As_max) and (As_ch >= As_req)
+            parts.append(Paragraph(
+                f"On prend : {int(n_as)}Ø{int(o_as)} → {fr0(As_ch)} mm²",
+                S["Blue"]))
+        return KeepTogether(parts), ok_val
+
+    def bloc_etriers(Vval, titre, n_br, phi, pas):
+        parts = []
+        parts.append(Paragraph(titre, S["Hsub"]))
+        if Vval and Vval > 0:
+            n_br_i = int(n_br or 1)
+            phi_i  = int(phi or 8)
+            A_st_val = aire_barres(n_br_i, phi_i)
+            s_th = (A_st_val * fyd * d_mm) / (Vval * 1e4)
+            A_dev = f"{n_br_i}\\cdot\\pi\\cdot {phi_i}^{2}/4"
+            texs = (
+                r"s_\mathrm{th}=\dfrac{(" + A_dev + r")\cdot "
+                + as_int_str(fyd) + r"\cdot " + as_int_str(d_mm) + r"}{"
+                + num2(Vval) + r"\cdot 10^{4}}"
+                + r"} = " + num1(s_th) + r"\ \mathrm{cm}"
+            )
+            parts.append(eq_row(texs, tmpdir, S, content_width/2, icon_text="", padd=(3,6,1,1)))
+            ok_pas = None
+            if phi and pas is not None:
+                ok_pas = pas <= s_th
+                parts.append(Paragraph(
+                    f"On prend : 1 étrier – Ø{phi_i} – {fr1(pas)} cm (pas théorique = {fr1(s_th)} cm)",
+                    S["Blue"]))
+            return KeepTogether(parts), ok_pas
+        else:
+            parts.append(Paragraph("—", S["Eq"]))
+            return KeepTogether(parts), None
 
     try:
         doc = SimpleDocTemplate(out_path, pagesize=A4,
@@ -277,69 +343,49 @@ def generer_rapport_pdf(
         # 3. Dimensionnement
         flow.append(Paragraph("<u>3. Dimensionnement</u>", S["Hmain"]))
 
-        # 3.1 Hauteur utile — b en mm (0 décimale), α_b & μ_a sur 4 décimales
+        # 3.1 Vérification h_min (cadre compact + padding droite augmenté)
         flow.append(Paragraph("3.1 Vérification de la hauteur utile", S["Hnorm"]))
         tex_hmin = (
             r"h_\mathrm{min}=\sqrt{\frac{"
             + num2(M_max) + r"\cdot 10^{6}}{"
-            + num4(alpha_b) + r"\cdot " + num0(b_mm) + r"\cdot "
-            + num4(mu_val) + r"\cdot 100}}"
-            + r"} = " + num1(hmin) + r"\ \mathrm{cm}"
+            + num2(kb) + r"\cdot " + num0(b_mm) + r"\cdot "
+            + num4(mu_val) + r"}}"
+            + r" = " + num1(hmin) + r"\ \mathrm{cm}"
         )
-        flow.append(eq_row(tex_hmin, tmpdir, S, content_width, icon_text=""))
+        # padding (L=3, R=6 pour écarter du 'cm', T=1, B=1 pour réduire la hauteur)
+        flow.append(eq_row(tex_hmin, tmpdir, S, content_width, icon_text="", padd=(3,6,1,1)))
         ok_h = (hmin + enrobage) <= h
         flow.append(status_row(
             f"h<sub>min</sub> + enrob. = {fr1(hmin+enrobage)} cm ≤ h = {fr1(h)} cm",
             ok_h, S, content_width, "Eq"
         ))
-        flow.append(Spacer(1, 5))
+        flow.append(Spacer(1, 6))
 
-        # 3.2 Armatures
+        # 3.2 Armatures — 4 colonnes sur une ligne
         flow.append(Paragraph("3.2 Calcul des armatures", S["Hnorm"]))
 
-        # Inférieures — fyd & d_mm sans décimales
-        flow.append(Paragraph("Armatures inférieures", S["Hsub"]))
-        tex_as_inf = (
-            r"A_{s,\mathrm{inf}}=\dfrac{"
-            + num2(M_inf) + r"\cdot 10^{6}}{"
-            + num0(fyd) + r"\cdot 0.9\cdot " + num0(d_mm) + r"\cdot 10}"
-            + r"} = " + num1(As_inf_req) + r"\ \mathrm{mm^2}"
+        bloc_sup, ok_sup = bloc_armatures(M_sup, As_sup_req, "Armatures supérieures", n_as_sup, o_as_sup) if (M_sup and M_sup>0) else (Paragraph("—", S["Center"]), None)
+        bloc_inf, ok_inf = bloc_armatures(M_inf, As_inf_req, "Armatures inférieures", n_as_inf, o_as_inf) if (M_inf and M_inf>0) else (Paragraph("—", S["Center"]), None)
+
+        t_arm = Table(
+            [[bloc_sup, Paragraph(ICON_OK if ok_sup else ICON_NOK if ok_sup is not None else "—", S["Center"]),
+              bloc_inf, Paragraph(ICON_OK if ok_inf else ICON_NOK if ok_inf is not None else "—", S["Center"])]],
+            colWidths=[content_width*0.42, content_width*0.08,
+                       content_width*0.42, content_width*0.08],
+            style=TableStyle([
+                ("VALIGN", (0,0), (-1,-1), "TOP"),
+                ("ALIGN", (1,0), (1,0), "CENTER"),
+                ("ALIGN", (3,0), (3,0), "CENTER"),
+                ("LEFTPADDING",  (0,0), (-1,-1), 2),
+                ("RIGHTPADDING", (0,0), (-1,-1), 2),
+                ("TOPPADDING",   (0,0), (-1,-1), 1),
+                ("BOTTOMPADDING",(0,0), (-1,-1), 1),
+            ])
         )
-        flow.append(eq_row(tex_as_inf, tmpdir, S, content_width, icon_text=""))
-        flow.append(text_row(f"Section d’acier minimale : A<sub>s,min</sub> = {fr0(As_min)} mm²", S, content_width))
-        flow.append(text_row(f"Section d’acier maximale : A<sub>s,max</sub> = {fr0(As_max)} mm²", S, content_width))
+        flow.append(t_arm)
+        flow.append(Spacer(1, 6))
 
-        if n_as_inf and o_as_inf:
-            As_inf_ch = aire_barres(n_as_inf, o_as_inf)
-            ok_inf = (As_min <= As_inf_ch <= As_max) and (As_inf_ch >= As_inf_req)
-            flow.append(status_row(
-                f"On prend : {int(n_as_inf)}Ø{int(o_as_inf)} → {fr0(As_inf_ch)} mm²",
-                ok_inf, S, content_width, "Blue"
-            ))
-        flow.append(Spacer(1, 4))
-
-        # Supérieures (si besoin)
-        if M_sup and M_sup > 0:
-            flow.append(Paragraph("Armatures supérieures", S["Hsub"]))
-            tex_as_sup = (
-                r"A_{s,\mathrm{sup}}=\dfrac{"
-                + num2(M_sup) + r"\cdot 10^{6}}{"
-                + num0(fyd) + r"\cdot 0.9\cdot " + num0(d_mm) + r"\cdot 10}"
-                + r"} = " + num1(As_sup_req) + r"\ \mathrm{mm^2}"
-            )
-            flow.append(eq_row(tex_as_sup, tmpdir, S, content_width, icon_text=""))
-            flow.append(text_row(f"Section d’acier minimale : A<sub>s,min</sub> = {fr0(As_min)} mm²", S, content_width))
-            flow.append(text_row(f"Section d’acier maximale : A<sub>s,max</sub> = {fr0(As_max)} mm²", S, content_width))
-            if n_as_sup and o_as_sup:
-                As_sup_ch = aire_barres(n_as_sup, o_as_sup)
-                ok_sup = (As_min <= As_sup_ch <= As_max) and (As_sup_ch >= As_sup_req)
-                flow.append(status_row(
-                    f"On prend : {int(n_as_sup)}Ø{int(o_as_sup)} → {fr0(As_sup_ch)} mm²",
-                    ok_sup, S, content_width, "Blue"
-                ))
-            flow.append(Spacer(1, 6))
-
-        # Effort tranchant — b,h en mm sans décimales
+        # Effort tranchant
         if V and V > 0:
             flow.append(Paragraph("Vérification de l'effort tranchant", S["Hnorm"]))
             tex_tau = (
@@ -347,7 +393,8 @@ def generer_rapport_pdf(
                 + num0(b_mm) + r"\cdot " + num0(h_mm) + r"}"
                 + r"} = " + num2(tau) + r"\ \mathrm{N/mm^{2}}"
             )
-            flow.append(eq_row(tex_tau, tmpdir, S, content_width, icon_text=""))
+            flow.append(eq_row(tex_tau, tmpdir, S, content_width, icon_text="", padd=(3,6,1,1)))
+
             if tau <= tau_1:
                 lim_lab, lim_val, ok_tau = "τ_adm I", tau_1, True
             elif tau <= tau_2:
@@ -356,6 +403,7 @@ def generer_rapport_pdf(
                 lim_lab, lim_val, ok_tau = "τ_adm IV", tau_4, True
             else:
                 lim_lab, lim_val, ok_tau = "τ_adm IV", tau_4, False
+
             flow.append(status_row(
                 (f"τ = {fr2(tau)} N/mm² < {lim_lab} = {fr2(lim_val)} N/mm²")
                 if ok_tau else
@@ -364,51 +412,26 @@ def generer_rapport_pdf(
             ))
             flow.append(Spacer(1, 6))
 
-            # Calcul du pas des étriers — A_st développé : n·π·φ²/4 (φ en mm, entier)
-            flow.append(Paragraph("Calcul des étriers", S["Hsub"]))
-            n_br = int(n_branches_etrier or 1)
-            phi  = int(o_etrier or 8)
-            # valeur numérique (pour le s_th)
-            A_st_e_val = aire_barres(n_br, phi)
-            s_th = (A_st_e_val * fyd * d_mm) / (V * 1e4) if V else 0.0  # cm
-            # forme développée
-            A_st_dev = f"{n_br}\\cdot\\pi\\cdot {phi}^{2}/4"
-            tex_s = (
-                r"s_\mathrm{th}=\dfrac{(" + A_st_dev + r")\cdot "
-                + num0(fyd) + r"\cdot " + num0(d_mm) + r"}{"
-                + num2(V) + r"\cdot 10^{4}}"
-                + r"} = " + num1(s_th) + r"\ \mathrm{cm}"
-            )
-            flow.append(eq_row(tex_s, tmpdir, S, content_width, icon_text=""))
-            if o_etrier and pas_etrier is not None:
-                ok_pas = pas_etrier <= s_th
-                flow.append(status_row(
-                    f"On prend : 1 étrier – Ø{phi} – {fr1(pas_etrier)} cm (pas théorique = {fr1(s_th)} cm)",
-                    ok_pas, S, content_width, "Blue"
-                ))
-            flow.append(Spacer(1, 6))
+            # Ligne 4 colonnes : étriers / OK | réduits / OK
+            bloc_e, ok_e = bloc_etriers(V, "Calcul des étriers", n_branches_etrier, o_etrier, pas_etrier)
+            bloc_er, ok_er = bloc_etriers(V_lim, "Calcul des étriers réduits", n_branches_etrier_r, o_etrier_r, pas_etrier_r) if (V_lim and V_lim>0) else (Paragraph("—", S["Center"]), None)
 
-        # Étriers réduits
-        if V_lim and V_lim > 0:
-            flow.append(Paragraph("Calcul des étriers réduits", S["Hsub"]))
-            n_brr = int(n_branches_etrier_r or n_branches_etrier or 1)
-            phir  = int(o_etrier_r or o_etrier or 8)
-            A_st_er_val = aire_barres(n_brr, phir)
-            s_thr = (A_st_er_val * fyd * d_mm) / (V_lim * 1e4)
-            A_st_dev_r = f"{n_brr}\\cdot\\pi\\cdot {phir}^{2}/4"
-            tex_sr = (
-                r"s_{\mathrm{th},r}=\dfrac{(" + A_st_dev_r + r")\cdot "
-                + num0(fyd) + r"\cdot " + num0(d_mm) + r"}{"
-                + num2(V_lim) + r"\cdot 10^{4}}"
-                + r"} = " + num1(s_thr) + r"\ \mathrm{cm}"
+            t_et = Table(
+                [[bloc_e, Paragraph(ICON_OK if ok_e else ICON_NOK if ok_e is not None else "—", S["Center"]),
+                  bloc_er, Paragraph(ICON_OK if ok_er else ICON_NOK if ok_er is not None else "—", S["Center"])]],
+                colWidths=[content_width*0.42, content_width*0.08,
+                           content_width*0.42, content_width*0.08],
+                style=TableStyle([
+                    ("VALIGN", (0,0), (-1,-1), "TOP"),
+                    ("ALIGN", (1,0), (1,0), "CENTER"),
+                    ("ALIGN", (3,0), (3,0), "CENTER"),
+                    ("LEFTPADDING",  (0,0), (-1,-1), 2),
+                    ("RIGHTPADDING", (0,0), (-1,-1), 2),
+                    ("TOPPADDING",   (0,0), (-1,-1), 1),
+                    ("BOTTOMPADDING",(0,0), (-1,-1), 1),
+                ])
             )
-            flow.append(eq_row(tex_sr, tmpdir, S, content_width, icon_text=""))
-            if o_etrier_r and pas_etrier_r is not None:
-                ok_pas_r = pas_etrier_r <= s_thr
-                flow.append(status_row(
-                    f"On prend : 1 étrier – Ø{phir} – {fr1(pas_etrier_r)} cm (pas théorique = {fr1(s_thr)} cm)",
-                    ok_pas_r, S, content_width, "Blue"
-                ))
+            flow.append(t_et)
 
         doc.build(flow)
         return out_path
