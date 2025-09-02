@@ -1,15 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-export_pdf.py — Rapport Poutre BA (mise en page 4 colonnes)
-- hmin : cadre compact + dénominateur = kb(2 déc.) · b(mm, 0 déc.) · μa(4 déc.) — sans '·100'
-- Armatures : affichages entiers sans décimales (ex. 333 → pas 333.3 ; 500 → pas 500.0)
-- 3.2 présenté sur une ligne en 4 colonnes (sup | OK/NON | inf | OK/NON)
-- Puis vérification du cisaillement et 4 colonnes (étriers | OK/NON | réduits | OK/NON)
+export_pdf.py — Rapport Poutre BA (mise en page 4 colonnes, équations compactes)
+
+Points clés :
+- h_min : cadre compact (moins haut), padding droit augmenté pour ne pas chevaucher “cm”.
+  Dénominateur = kb(2 déc.) · b(mm, 0 déc.) · μ_a(4 déc.) — SANS '·100'.
+  Calcul h_min cohérent avec l'affichage (kb utilisé réellement).
+- Armatures : affichage des constantes entières sans décimales -> fyd affiché '333' (pas 333,3) et d(mm) '500'.
+- Section 3.2 : 1 ligne sur toute la largeur en 4 colonnes :
+    [Arm sup | OK/NON | Arm inf | OK/NON]
+  Puis “Vérification de l’effort tranchant”.
+  Puis à nouveau 4 colonnes :
+    [Étriers | OK/NON | Étriers réduits | OK/NON]
+- Tolérant aux entrées Streamlit avec virgules (ex. "35,0") grâce à to_float / to_int.
 """
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    Image, KeepTogether
+)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
@@ -23,6 +34,7 @@ from PIL import Image as PILImage
 import json, os, math, tempfile, shutil
 from datetime import datetime
 
+
 # =================== Réglages d'affichage des équations ===================
 
 EQ_IMG_WIDTH_MM = 38
@@ -33,23 +45,30 @@ ICON_OK  = "OK"
 ICON_NOK = "NON"
 BLUE_DARK = colors.HexColor("#003366")
 
+
 # ================================ Utils ===================================
 
 def fr(x, nd=1):
-    if x is None:
+    """Format FR avec nd décimales ; accepte '35,2', '35.2', float, int."""
+    if x is None or x == "":
         return "-"
-    s = f"{float(x):,.{nd}f}".replace(",", "§").replace(".", ",").replace("§", " ")
+    if isinstance(x, str):
+        x = x.strip().replace(" ", "").replace(",", ".")
+    try:
+        val = float(x)
+    except Exception:
+        return "-"
+    s = f"{val:,.{nd}f}".replace(",", "§").replace(".", ",").replace("§", " ")
     if s.startswith("-0,"):
         s = s.replace("-0,", "0,")
     return s
 
-# décimales standardisées
 def fr0(x): return fr(x, 0)
 def fr1(x): return fr(x, 1)
 def fr2(x): return fr(x, 2)
 def fr4(x): return fr(x, 4)
 
-def num_from_fr(s):  # FR → TeX
+def num_from_fr(s):  # FR → TeX/US (virgule → point)
     return s.replace(",", ".")
 
 def num0(x): return num_from_fr(fr0(x))
@@ -57,8 +76,28 @@ def num1(x): return num_from_fr(fr1(x))
 def num2(x): return num_from_fr(fr2(x))
 def num4(x): return num_from_fr(fr4(x))
 
+def to_float(x, default=0.0):
+    if x is None or x == "":
+        return float(default)
+    if isinstance(x, str):
+        x = x.strip().replace(" ", "").replace(",", ".")
+    try:
+        return float(x)
+    except Exception:
+        return float(default)
+
+def to_int(x, default=0):
+    if x is None or x == "":
+        return int(default)
+    if isinstance(x, str):
+        x = x.strip().replace(" ", "").replace(",", ".")
+    try:
+        return int(float(x))  # accepte "8", "8.0", "8,0"
+    except Exception:
+        return int(default)
+
 def as_int_str(x):
-    """Affiche sans décimales si la valeur est 'entière attendue' (ex. 333.3 -> '333')."""
+    """Chaîne numérique SANS décimales (arrondi) pour affichage dans TeX."""
     try:
         v = float(x)
         return num0(round(v))
@@ -146,28 +185,36 @@ def eq_box(img_path, padd=(3,6,1,1)):
     box.setStyle(TableStyle([
         ("BOX", (0,0), (-1,-1), 0.75, colors.black),
         ("LEFTPADDING",  (0,0), (-1,-1), left),
-        ("RIGHTPADDING", (0,0), (-1,-1), right),
-        ("TOPPADDING",   (0,0), (-1,-1), top),
-        ("BOTTOMPADDING",(0,0), (-1,-1), bottom),
+        ("RIGHTPADDING", (0,0), (-1,-1), right),   # plus grand pour ne pas "taper" le 'cm'
+        ("TOPPADDING",   (0,0), (-1,-1), top),     # faible pour réduire la hauteur du cadre
+        ("BOTTOMPADDING",(0,0), (-1,-1), bottom),  # idem
         ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
     ]))
     return box, target_w
 
-def eq_row(tex_numeric, tmpdir, styles, content_width, icon_text="", padd=(3,3,2,2)):
+def eq_row(tex_numeric, tmpdir, styles, content_width, icon_text="", padd=(3,6,1,1)):
     img_path = os.path.join(tmpdir, f"eq_{abs(hash(tex_numeric))}.png")
     render_equation(tex_numeric, img_path, fontsize=MATH_FONTSIZE, pad=0.05)
     box, _ = eq_box(img_path, padd=padd)
     return make_row(box, styles, content_width, icon_text)
 
+
 # =============================== Données ==============================
 
 def load_beton_data():
+    """Lit les paramètres matériaux ; fallback si absent."""
     here = os.path.dirname(os.path.abspath(__file__))
     p = os.path.join(here, "..", "beton_classes.json")
     if not os.path.exists(p):
         p = "beton_classes.json"
-    with open(p, "r", encoding="utf-8") as f:
-        return json.load(f)
+    if os.path.exists(p):
+        with open(p, "r", encoding="utf-8") as f:
+            return json.load(f)
+    # défaut minimal
+    return {
+        "C30/37": {"fck_cube": 30, "alpha_b": 0.72, "mu_a500": 0.1709, "kb": 12.96}
+    }
+
 
 # ============================ Générateur PDF ==========================
 
@@ -184,13 +231,36 @@ def generer_rapport_pdf(
     n_branches_etrier_r=1, o_etrier_r=None, pas_etrier_r=None,
     **kwargs,
 ):
+    # --- normalisation systématique des entrées ---
+    b = to_float(b)
+    h = to_float(h)
+    enrobage = to_float(enrobage)
+
+    M_inf = to_float(M_inf)
+    M_sup = to_float(M_sup)
+    V     = to_float(V)
+    V_lim = to_float(V_lim)
+
+    n_as_inf = to_int(n_as_inf) if n_as_inf is not None else None
+    o_as_inf = to_int(o_as_inf) if o_as_inf is not None else None
+    n_as_sup = to_int(n_as_sup) if n_as_sup is not None else None
+    o_as_sup = to_int(o_as_sup) if o_as_sup is not None else None
+
+    n_branches_etrier   = to_int(n_branches_etrier, 1)
+    o_etrier            = to_int(o_etrier) if o_etrier is not None else None
+    pas_etrier          = to_float(pas_etrier) if pas_etrier is not None else None
+    n_branches_etrier_r = to_int(n_branches_etrier_r, 1)
+    o_etrier_r          = to_int(o_etrier_r) if o_etrier_r is not None else None
+    pas_etrier_r        = to_float(pas_etrier_r) if pas_etrier_r is not None else None
+
+    # Matériaux
     data = load_beton_data()
     d = data.get(beton, {})
-    fck_cube = d.get("fck_cube", 30)
-    alpha_b  = d.get("alpha_b", 0.72)
-    mu_val   = d.get(f"mu_a{fyk}", 0.1700)   # ex. 0.1709
-    kb       = d.get("kb", round(alpha_b*18.0, 2))  # coefficient kb affiché et utilisé (ex. 12.96)
-    fyd      = int(fyk) / 1.5               # affiché sans décimales
+    fck_cube = to_float(d.get("fck_cube", 30))
+    alpha_b  = to_float(d.get("alpha_b", 0.72))
+    mu_val   = to_float(d.get(f"mu_a{int(to_float(fyk))}", d.get("mu_a500", 0.1709)))
+    kb       = d.get("kb", round(alpha_b*18.0, 2))  # valeur affichée & utilisée
+    fyd      = int(to_float(fyk)) / 1.5             # valeur exacte pour calcul ; affichage sans déc.
 
     # Géométrie (cm) + mm
     d_utile = h - enrobage
@@ -199,24 +269,26 @@ def generer_rapport_pdf(
     d_mm = d_utile * 10.0
 
     # Calculs
-    M_max   = max(float(M_inf or 0.0), float(M_sup or 0.0))
-    # hmin basé sur 'kb' (plus de facteur *100) — cohérent avec l'affichage
-    hmin    = math.sqrt((M_max*1e6)/(kb*b_mm*mu_val))/10.0 if M_max>0 else 0.0
+    M_max = max(float(M_inf or 0.0), float(M_sup or 0.0))
+    # h_min basé sur kb · b(mm) · μa — cohérent avec l'affichage (pas de '·100')
+    hmin = math.sqrt((M_max*1e6)/(kb*b_mm*mu_val))/10.0 if M_max > 0 else 0.0
 
     As_min      = 0.0013 * b * h * 1e2
     As_max      = 0.04   * b * h * 1e2
-    As_inf_req  = (M_inf*1e6) / (fyd*0.9*d_utile*10) if M_inf>0 else 0.0
-    As_sup_req  = (M_sup*1e6) / (fyd*0.9*d_utile*10) if M_sup>0 else 0.0
+    As_inf_req  = (M_inf*1e6) / (fyd*0.9*d_utile*10) if M_inf > 0 else 0.0
+    As_sup_req  = (M_sup*1e6) / (fyd*0.9*d_utile*10) if M_sup > 0 else 0.0
 
-    tau   = (V*1e3) / (0.75*b*h*100) if V>0 else 0.0
+    tau   = (V*1e3) / (0.75*b*h*100) if V > 0 else 0.0
     tau_1 = 0.016 * fck_cube / 1.05
     tau_2 = 0.032 * fck_cube / 1.05
     tau_4 = 0.064 * fck_cube / 1.05
 
     # Sortie
     out_dir = "/mnt/data"
-    try: os.makedirs(out_dir, exist_ok=True)
-    except Exception: out_dir = tempfile.gettempdir()
+    try:
+        os.makedirs(out_dir, exist_ok=True)
+    except Exception:
+        out_dir = tempfile.gettempdir()
     proj = (nom_projet or "XXX")[:3].upper()
     part = (partie or "Partie").strip().replace(" ", "_")
     ind  = (indice or "0")
@@ -233,23 +305,27 @@ def generer_rapport_pdf(
     def bloc_armatures(M_val, As_req, titre, n_as, o_as):
         parts = []
         parts.append(Paragraph(titre, S["Hsub"]))
-        tex = (
-            r"A_{s}=\dfrac{"
-            + num2(M_val) + r"\cdot 10^{6}}{"
-            + as_int_str(fyd) + r"\cdot 0.9\cdot " + as_int_str(d_mm) + r"\cdot 10}"
-            + r"} = " + num1(As_req) + r"\ \mathrm{mm^2}"
-        )
-        # cadre compact pour les équations dans les colonnes
-        parts.append(eq_row(tex, tmpdir, S, content_width/2, icon_text="", padd=(3,6,1,1)))
-        parts.append(Paragraph(f"A<sub>s,min</sub> = {fr0(As_min)} mm²", S["Eq"]))
-        parts.append(Paragraph(f"A<sub>s,max</sub> = {fr0(As_max)} mm²", S["Eq"]))
-        ok_val = None
-        if n_as and o_as:
-            As_ch = aire_barres(n_as, o_as)
-            ok_val = (As_min <= As_ch <= As_max) and (As_ch >= As_req)
-            parts.append(Paragraph(
-                f"On prend : {int(n_as)}Ø{int(o_as)} → {fr0(As_ch)} mm²",
-                S["Blue"]))
+        if M_val and M_val > 0:
+            tex = (
+                r"A_{s}=\dfrac{"
+                + num2(M_val) + r"\cdot 10^{6}}{"
+                + as_int_str(fyd) + r"\cdot 0.9\cdot " + as_int_str(d_mm) + r"\cdot 10}"
+                + r"} = " + num1(As_req) + r"\ \mathrm{mm^2}"
+            )
+            # cadre compact dans les colonnes (padding droit 6)
+            parts.append(eq_row(tex, tmpdir, S, content_width/2, icon_text="", padd=(3,6,1,1)))
+            parts.append(Paragraph(f"A<sub>s,min</sub> = {fr0(As_min)} mm²", S["Eq"]))
+            parts.append(Paragraph(f"A<sub>s,max</sub> = {fr0(As_max)} mm²", S["Eq"]))
+            ok_val = None
+            if n_as and o_as:
+                As_ch = aire_barres(n_as, o_as)
+                ok_val = (As_min <= As_ch <= As_max) and (As_ch >= As_req)
+                parts.append(Paragraph(
+                    f"On prend : {int(n_as)}Ø{int(o_as)} → {fr0(As_ch)} mm²",
+                    S["Blue"]))
+        else:
+            ok_val = None
+            parts.append(Paragraph("—", S["Eq"]))
         return KeepTogether(parts), ok_val
 
     def bloc_etriers(Vval, titre, n_br, phi, pas):
@@ -284,7 +360,7 @@ def generer_rapport_pdf(
                                 leftMargin=leftM, rightMargin=rightM,
                                 topMargin=topM, bottomMargin=botM)
 
-        # 1. Caractéristiques
+        # 1. En-tête
         flow.append(Table(
             [
                 ["Projet :", nom_projet or "—", "Date :", date or datetime.today().strftime("%d/%m/%Y")],
@@ -301,10 +377,11 @@ def generer_rapport_pdf(
         ))
         flow.append(Spacer(1, 3))
 
+        # 1. Caractéristiques
         flow.append(Paragraph("<u>1. Caractéristiques de la poutre</u>", S["Hmain"]))
         flow.append(Table(
             [
-                ["Classe de béton", beton, "Armature", f"{fyk} N/mm²"],
+                ["Classe de béton", beton, "Armature", f"{int(to_float(fyk))} N/mm²"],
                 ["Largeur b", f"{fr1(b)} cm", "Hauteur h", f"{fr1(h)} cm"],
                 ["Enrobage", f"{fr1(enrobage)} cm", "Hauteur utile d", f"{fr1(d_utile)} cm"],
             ],
@@ -323,10 +400,10 @@ def generer_rapport_pdf(
         flow.append(Paragraph("<u>2. Sollicitations</u>", S["Hmain"]))
         sol_table = Table(
             [
-                ["Moment inférieur M", f"{fr1(M_inf)} kNm" if (M_inf and M_inf>0) else "—",
-                 "Moment supérieur M_sup", f"{fr1(M_sup)} kNm" if (M_sup and M_sup>0) else "—"],
-                ["Effort tranchant V", f"{fr1(V)} kN" if (V and V>0) else "—",
-                 "Effort tranchant réduit V_réduit", f"{fr1(V_lim)} kN" if (V_lim and V_lim>0) else "—"],
+                ["Moment inférieur M", f"{fr1(M_inf)} kNm" if (M_inf and M_inf > 0) else "—",
+                 "Moment supérieur M_sup", f"{fr1(M_sup)} kNm" if (M_sup and M_sup > 0) else "—"],
+                ["Effort tranchant V", f"{fr1(V)} kN" if (V and V > 0) else "—",
+                 "Effort tranchant réduit V_réduit", f"{fr1(V_lim)} kN" if (V_lim and V_lim > 0) else "—"],
             ],
             colWidths=[48*mm, content_width/2-48*mm, 58*mm, content_width/2-58*mm],
             style=TableStyle([
@@ -343,7 +420,7 @@ def generer_rapport_pdf(
         # 3. Dimensionnement
         flow.append(Paragraph("<u>3. Dimensionnement</u>", S["Hmain"]))
 
-        # 3.1 Vérification h_min (cadre compact + padding droite augmenté)
+        # 3.1 Vérification h_min — cadre compact
         flow.append(Paragraph("3.1 Vérification de la hauteur utile", S["Hnorm"]))
         tex_hmin = (
             r"h_\mathrm{min}=\sqrt{\frac{"
@@ -352,7 +429,6 @@ def generer_rapport_pdf(
             + num4(mu_val) + r"}}"
             + r" = " + num1(hmin) + r"\ \mathrm{cm}"
         )
-        # padding (L=3, R=6 pour écarter du 'cm', T=1, B=1 pour réduire la hauteur)
         flow.append(eq_row(tex_hmin, tmpdir, S, content_width, icon_text="", padd=(3,6,1,1)))
         ok_h = (hmin + enrobage) <= h
         flow.append(status_row(
@@ -361,12 +437,10 @@ def generer_rapport_pdf(
         ))
         flow.append(Spacer(1, 6))
 
-        # 3.2 Armatures — 4 colonnes sur une ligne
+        # 3.2 Armatures — 4 colonnes (sup | OK | inf | OK)
         flow.append(Paragraph("3.2 Calcul des armatures", S["Hnorm"]))
-
-        bloc_sup, ok_sup = bloc_armatures(M_sup, As_sup_req, "Armatures supérieures", n_as_sup, o_as_sup) if (M_sup and M_sup>0) else (Paragraph("—", S["Center"]), None)
-        bloc_inf, ok_inf = bloc_armatures(M_inf, As_inf_req, "Armatures inférieures", n_as_inf, o_as_inf) if (M_inf and M_inf>0) else (Paragraph("—", S["Center"]), None)
-
+        bloc_sup, ok_sup = bloc_armatures(M_sup, As_sup_req, "Armatures supérieures", n_as_sup, o_as_sup) if (M_sup and M_sup > 0) else (Paragraph("—", S["Center"]), None)
+        bloc_inf, ok_inf = bloc_armatures(M_inf, As_inf_req, "Armatures inférieures", n_as_inf, o_as_inf) if (M_inf and M_inf > 0) else (Paragraph("—", S["Center"]), None)
         t_arm = Table(
             [[bloc_sup, Paragraph(ICON_OK if ok_sup else ICON_NOK if ok_sup is not None else "—", S["Center"]),
               bloc_inf, Paragraph(ICON_OK if ok_inf else ICON_NOK if ok_inf is not None else "—", S["Center"])]],
@@ -385,7 +459,7 @@ def generer_rapport_pdf(
         flow.append(t_arm)
         flow.append(Spacer(1, 6))
 
-        # Effort tranchant
+        # 3.x Vérification effort tranchant
         if V and V > 0:
             flow.append(Paragraph("Vérification de l'effort tranchant", S["Hnorm"]))
             tex_tau = (
@@ -412,9 +486,9 @@ def generer_rapport_pdf(
             ))
             flow.append(Spacer(1, 6))
 
-            # Ligne 4 colonnes : étriers / OK | réduits / OK
+            # 4 colonnes : Étriers / OK | Étriers réduits / OK
             bloc_e, ok_e = bloc_etriers(V, "Calcul des étriers", n_branches_etrier, o_etrier, pas_etrier)
-            bloc_er, ok_er = bloc_etriers(V_lim, "Calcul des étriers réduits", n_branches_etrier_r, o_etrier_r, pas_etrier_r) if (V_lim and V_lim>0) else (Paragraph("—", S["Center"]), None)
+            bloc_er, ok_er = bloc_etriers(V_lim, "Calcul des étriers réduits", n_branches_etrier_r, o_etrier_r, pas_etrier_r) if (V_lim and V_lim > 0) else (Paragraph("—", S["Center"]), None)
 
             t_et = Table(
                 [[bloc_e, Paragraph(ICON_OK if ok_e else ICON_NOK if ok_e is not None else "—", S["Center"]),
@@ -433,6 +507,7 @@ def generer_rapport_pdf(
             )
             flow.append(t_et)
 
+        # Build PDF
         doc.build(flow)
         return out_path
 
