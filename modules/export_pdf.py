@@ -297,8 +297,8 @@ def generer_rapport_pdf(
         flow.append(Table(
             [
                 ["Classe de béton", beton, "Armature", f"{int(to_float(fyk))} N/mm²"],
-                ["Largeur b", f"{fr1(b)} cm", "Hauteur h", f"{fr1(h)} cm"],
-                ["Enrobage", f"{fr1(enrobage)} cm", "Hauteur utile d", f"{fr1(d_utile)} cm"],
+                ["Largeur: b", f"{fr1(b)} cm", "Hauteur: h", f"{fr1(h)} cm"],
+                ["Enrobage: c", f"{fr1(enrobage)} cm", "Hauteur utile: d", f"{fr1(d_utile)} cm"],
             ],
             colWidths=[34*mm, content_width/2-34*mm, 34*mm, content_width/2-34*mm],
             style=TableStyle([
@@ -340,7 +340,7 @@ def generer_rapport_pdf(
             r"h_\mathrm{min}=\sqrt{\frac{"
             + num2(M_max) + r"\cdot 10^{6}}{"
             + num2(kb) + r"\cdot " + num0(b_mm) + r"\cdot " + num4(mu_val) + r"}}"
-            + r" = " + num1(hmin) + r"\ \mathrm{cm}"
+            + r" = " + num1(hmin) + r"\ \mathrm{cm  }"
         )
         flow.append(make_row(eq_flowable(tex_hmin, content_width-12*mm, tmpdir, padd=(3,6,1,1)),
                              S, content_width, ""))  # pas d'icône ici
