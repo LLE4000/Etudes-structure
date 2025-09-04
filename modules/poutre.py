@@ -372,7 +372,7 @@ def show():
             pas_cur       = float(st.session_state["pas_etrier"])
             
             # Recalculs avec valeurs à jour
-            Ast_e  = n_etriers_cur * math.pi * (d_etrier_cur/2)**2
+            Ast_e  = n_etriers_cur * 2 * math.pi * (d_etrier_cur/2)**2
             pas_th = Ast_e * fyd * d_utile * 10 / (10 * V * 1e3)
             
             etat_pas = "ok" if pas_cur <= pas_th else ("warn" if pas_cur <= 30 else "nok")
@@ -421,7 +421,7 @@ def show():
             pas_r_cur  = float(st.session_state["pas_etrier_r"])
             
             # Recalculs
-            Ast_er   = n_et_r_cur * math.pi * (d_et_r_cur/2)**2
+            Ast_er   = n_et_r_cur * 2 * math.pi * (d_et_r_cur/2)**2
             pas_th_r = Ast_er * fyd * d_utile * 10 / (10 * V_lim * 1e3)
             
             etat_pas_r = "ok" if pas_r_cur <= pas_th_r else ("warn" if pas_r_cur <= 30 else "nok")
