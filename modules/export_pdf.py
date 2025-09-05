@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-export_pdf.py — Rapport Poutre BA (Arial, tailles -1 pt, OK/NON colorés)
+export_pdf.py — Rapport Poutre BA (aligné, polices Arial, formules corrigées)
 
-- Titres/sous-titres : Arial Bold ; texte : Arial Regular (fallback propre si Arial absent).
-- h_min : dénominateur = k_b (2 déc.) · b(mm, 0 déc.) · μ_a (4 déc.). Affiche comparaison avec h - enrobage.
-- Armatures : plus de “·10” dans la formule affichée. Compare A_s,req avec A_s,choisi si présent.
-- Ordre colonnes armatures : [M_inf | OK/NON | M_sup | OK/NON].
-- Cisaillement : ajoute comparaison τ avec limite active dans la formule.
-- Étriers : équation avec n·2·π·r² (r = Ø/2) et comparaison avec le pas choisi. Conclu “On prend …”
-  sans parenthèse “(pas théorique = …)”.
+- Titres Arial Bold, texte Arial (fallback Helvetica) ; tailles -1 pt.
+- Formules encadrées, largeur +30 % ; rendu stable via PNG transparents.
+- h_min : √( M·10^6 / (αb · b_mm · μa) ), μa à 4 décimales ; comparaison "< h - enrob. = … cm" dans le cadre.
+- Armatures : A_s = M·10^6 / (333 · 0.9 · d_mm) (sans ·10) ; résultat (0 déc., sans unité) < (choisi ou limite) mm².
+- Cisaillement : τ = V·10^3 / (0.75 · b_mm · h_mm) ; résultat sans unité < limite (avec unité). Pas de rappel hors cadre.
+- Étriers : s_th = ((n_br)·π·r^2 · 333 · d_mm) / (V·10^3), comparaison "< pas choisi".
+- Table 4 colonnes : [Arm inf | OK] [Arm sup | OK] puis [Étriers | OK] [Étriers réduits | OK].
 """
 
 from reportlab.lib.pagesizes import A4
@@ -27,18 +27,16 @@ from PIL import Image as PILImage
 import json, os, math, tempfile, shutil
 from datetime import datetime
 
-# ---------------------- Réglages équations ----------------------
+# ---------------- Réglages équations (agrandies +30 %) ----------------
 EQ_IMG_WIDTH_MM = 38
-EQ_IMG_SCALE    = 1.20
+EQ_IMG_SCALE    = 1.56    # 1.2 × 1.30 ≈ 1.56
 MATH_FONTSIZE   = 14
 
-ICON_OK  = "OK"
-ICON_NOK = "NON"
-BLUE_DARK   = colors.HexColor("#003366")
-GREEN_OK    = "#2e7d32"
-RED_NOK     = "#c62828"
+GREEN = colors.HexColor("#1a7f37")
+RED   = colors.HexColor("#c62828")
+BLUE_DARK = colors.HexColor("#003366")
 
-# ---------------------- Utils nombre & format -------------------
+# ---------------- Utils nombre & format ----------------
 def fr(x, nd=1):
     if x is None or x == "":
         return "-"
@@ -84,13 +82,7 @@ def to_int(x, default=0):
     except Exception:
         return int(default)
 
-def as_int_str(x):
-    try:
-        return num0(round(float(x)))
-    except Exception:
-        return num0(x)
-
-# ---------------------- Rendu équations -------------------------
+# ---------------- Rendu equations encadrées ----------------
 def _render_equation_png(tex_expr, out_path, fontsize=MATH_FONTSIZE, pad=0.05):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     fig = plt.figure(figsize=(1, 1), dpi=250)
@@ -104,7 +96,7 @@ def _boxed(flowable, width, padd=(3,6,1,1)):
     L, R, T, B = padd
     tbl = Table([[flowable]], colWidths=[width])
     tbl.setStyle(TableStyle([
-        ("BOX", (0,0), (-1,-1), 0.75, colors.black),
+        ("BOX", (0,0), (-1,-1), 0.9, colors.black),
         ("LEFTPADDING",  (0,0), (-1,-1), L),
         ("RIGHTPADDING", (0,0), (-1,-1), R),
         ("TOPPADDING",   (0,0), (-1,-1), T),
@@ -120,7 +112,6 @@ def eq_flowable(tex_expr, cell_width, tmpdir, padd=(3,6,1,1)):
 
         max_w = EQ_IMG_WIDTH_MM * mm * EQ_IMG_SCALE
         w = min(cell_width, max_w)
-
         try:
             with PILImage.open(img_path) as im:
                 px_w, px_h = im.size
@@ -131,83 +122,74 @@ def eq_flowable(tex_expr, cell_width, tmpdir, padd=(3,6,1,1)):
 
         return _boxed(img, w, padd=padd)
     except Exception:
-        return _boxed(Paragraph(f"${tex_expr}$", get_styles()["Eq"]), cell_width, padd=padd)
+        from reportlab.lib.styles import getSampleStyleSheet
+        ss = getSampleStyleSheet()
+        return _boxed(Paragraph(f"${tex_expr}$", ss["BodyText"]), cell_width, padd=padd)
 
-# ---------------------- Styles (Arial) --------------------------
+# ---------------- Polices & styles (Arial) ----------------
 def register_fonts():
-    # Tente Arial ; fallback propre
-    try:
-        # chemins possibles
-        candidates_regular = ["Arial.ttf", "ArialMT.ttf", "/usr/share/fonts/truetype/msttcorefonts/Arial.ttf",
-                              "/usr/share/fonts/truetype/freefont/FreeSans.ttf"]
-        candidates_bold    = ["Arial-Bold.ttf", "Arial Bold.ttf", "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf",
-                              "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"]
-        reg = next((p for p in candidates_regular if os.path.exists(p)), None)
-        bld = next((p for p in candidates_bold    if os.path.exists(p)), None)
-        if reg and bld:
-            pdfmetrics.registerFont(TTFont("Arial", reg))
-            pdfmetrics.registerFont(TTFont("Arial-Bold", bld))
-            return ("Arial", "Arial-Bold")
-    except Exception:
-        pass
-    # Fallback
-    return ("Helvetica", "Helvetica-Bold")
+    # Essaye Arial ; fallback Helvetica
+    bold_candidates = ["Arial-Bold.ttf", "Arial Bold.ttf", "Arial-BoldMT.ttf"]
+    reg_candidates  = ["Arial.ttf", "ArialMT.ttf"]
+
+    used_bold = None
+    used_reg  = None
+    for f in reg_candidates:
+        if os.path.exists(f):
+            pdfmetrics.registerFont(TTFont("Arial", f))
+            used_reg = "Arial"; break
+    for f in bold_candidates:
+        if os.path.exists(f):
+            pdfmetrics.registerFont(TTFont("Arial-Bold", f))
+            used_bold = "Arial-Bold"; break
+
+    if not used_reg:
+        used_reg = "Helvetica"
+    if not used_bold:
+        used_bold = "Helvetica-Bold"
+    return used_reg, used_bold
 
 def get_styles():
     base, base_b = register_fonts()
     ss = getSampleStyleSheet()
-    black = colors.black
     return {
         "Body": ParagraphStyle("Body", parent=ss["BodyText"],
-                               fontName=base, fontSize=8.5, leading=11, textColor=black),
+                               fontName=base, fontSize=8.5, leading=11.0, textColor=colors.black),
         "Hmain": ParagraphStyle("Hmain", parent=ss["BodyText"],
-                                fontName=base_b, fontSize=9.0, leading=12,
-                                spaceBefore=6, spaceAfter=4, textColor=black),
+                                fontName=base_b, fontSize=9.0, leading=12.0,
+                                spaceBefore=5, spaceAfter=3, textColor=colors.black),
         "Hnorm": ParagraphStyle("Hnorm", parent=ss["BodyText"],
-                                fontName=base_b, fontSize=8.8, leading=11.5,
-                                spaceBefore=5, spaceAfter=3, textColor=black),
+                                fontName=base_b, fontSize=8.8, leading=11.8,
+                                spaceBefore=4, spaceAfter=3, textColor=colors.black),
         "Hsub": ParagraphStyle("Hsub", parent=ss["BodyText"],
-                               fontName=base_b, fontSize=8.6, leading=11.5,
-                               spaceBefore=4, spaceAfter=3, textColor=black),
+                               fontName=base_b, fontSize=8.6, leading=11.4,
+                               spaceBefore=3, spaceAfter=2, textColor=colors.black),
         "Eq": ParagraphStyle("Eq", parent=ss["BodyText"],
-                             fontName=base, fontSize=8.5, leading=18, textColor=black),
+                             fontName=base, fontSize=8.5, leading=11.8, textColor=colors.black),
         "Blue": ParagraphStyle("Blue", parent=ss["BodyText"],
-                               fontName=base_b, fontSize=8.5, leading=18, textColor=BLUE_DARK),
+                               fontName=base_b, fontSize=8.5, leading=11.8, textColor=BLUE_DARK),
         "Center": ParagraphStyle("Center", parent=ss["BodyText"],
-                                 fontName=base, fontSize=8.5, leading=12, alignment=1, textColor=black),
+                                 fontName=base, fontSize=8.5, leading=11.0, alignment=1, textColor=colors.black),
+        "OK": ParagraphStyle("OK", parent=ss["BodyText"],
+                             fontName=base_b, fontSize=8.5, textColor=GREEN, alignment=1),
+        "NOK": ParagraphStyle("NOK", parent=ss["BodyText"],
+                              fontName=base_b, fontSize=8.5, textColor=RED, alignment=1),
     }
 
-def make_row(flowable, styles, content_width, icon_text=""):
-    col_icon = 12*mm
-    tbl = Table([[flowable, Paragraph(icon_text, styles["Eq"])]],
-                colWidths=[content_width - col_icon, col_icon])
-    tbl.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("ALIGN",  (1,0), (1,0), "RIGHT"),
-        ("LEFTPADDING",  (0,0), (-1,-1), 0),
-        ("RIGHTPADDING", (0,0), (-1,-1), 0),
-        ("TOPPADDING",   (0,0), (-1,-1), 0),
-        ("BOTTOMPADDING",(0,0), (-1,-1), 0),
-    ]))
-    return tbl
+def ok_cell(ok, S):
+    if ok is None: return Paragraph("—", S["Center"])
+    return Paragraph("OK" if ok else "NON", S["OK"] if ok else S["NOK"])
 
-def ok_bad_html(ok_bool):
-    if ok_bool is None:
-        return ""
-    return f'<font color="{GREEN_OK if ok_bool else RED_NOK}">{ICON_OK if ok_bool else ICON_NOK}</font>'
-
-# ---------------------- Données matériau ------------------------
+# ---------------- Données matériau ----------------
 def load_beton_data():
     here = os.path.dirname(os.path.abspath(__file__))
     p = os.path.join(here, "..", "beton_classes.json")
     if not os.path.exists(p):
         p = "beton_classes.json"
-    if os.path.exists(p):
-        with open(p, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"C30/37": {"fck_cube": 30, "alpha_b": 0.72, "mu_a500": 0.1709}}
+    with open(p, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-# ---------------------- Génération PDF --------------------------
+# ---------------- Génération PDF ----------------
 def generer_rapport_pdf(
     nom_projet="", partie="", date="", indice="",
     beton="C30/37", fyk="500",
@@ -216,21 +198,21 @@ def generer_rapport_pdf(
     V=0.0, V_lim=0.0,
     n_as_inf=None, o_as_inf=None,
     n_as_sup=None, o_as_sup=None,
-    n_branches_etrier=1, o_etrier=None, pas_etrier=None,
-    n_branches_etrier_r=1, o_etrier_r=None, pas_etrier_r=None,
+    n_branches_etrier=2, o_etrier=None, pas_etrier=None,
+    n_branches_etrier_r=2, o_etrier_r=None, pas_etrier_r=None,
     **kwargs,
 ):
-    # Normalisation
+    # Normalisation entrées
     b, h, enrobage = to_float(b), to_float(h), to_float(enrobage)
     M_inf, M_sup, V, V_lim = to_float(M_inf), to_float(M_sup), to_float(V), to_float(V_lim)
     n_as_inf = to_int(n_as_inf) if n_as_inf is not None else None
     o_as_inf = to_int(o_as_inf) if o_as_inf is not None else None
     n_as_sup = to_int(n_as_sup) if n_as_sup is not None else None
     o_as_sup = to_int(o_as_sup) if o_as_sup is not None else None
-    n_branches_etrier   = to_int(n_branches_etrier, 1)
+    n_branches_etrier   = to_int(n_branches_etrier, 2)
     o_etrier            = to_int(o_etrier) if o_etrier is not None else None
     pas_etrier          = to_float(pas_etrier) if pas_etrier is not None else None
-    n_branches_etrier_r = to_int(n_branches_etrier_r, 1)
+    n_branches_etrier_r = to_int(n_branches_etrier_r, 2)
     o_etrier_r          = to_int(o_etrier_r) if o_etrier_r is not None else None
     pas_etrier_r        = to_float(pas_etrier_r) if pas_etrier_r is not None else None
 
@@ -238,10 +220,9 @@ def generer_rapport_pdf(
     data = load_beton_data()
     d = data.get(beton, {})
     fck_cube = to_float(d.get("fck_cube", 30))
-    alpha_b  = to_float(d.get("alpha_b", 0.72))
-    mu_val   = to_float(d.get(f"mu_a{int(to_float(fyk))}", d.get("mu_a500", 0.1709)))  # 4 déc. en affichage
-    kb       = round(alpha_b*18.0, 2)   # 2 déc.
-    fyd      = int(to_float(fyk)) / 1.5
+    alpha_b  = to_float(d.get("alpha_b", 12.96))     # 2 décimales
+    mu_val   = to_float(d.get(f"mu_a{int(to_float(fyk))}", 0.1709))  # 4 décimales à l’affichage
+    fyd      = int(to_float(fyk)) / 1.5              # 333… pour 500
 
     # Géométrie
     d_utile = h - enrobage
@@ -249,14 +230,16 @@ def generer_rapport_pdf(
 
     # Calculs
     M_max = max(float(M_inf or 0.0), float(M_sup or 0.0))
-    hmin  = math.sqrt((M_max*1e6)/(kb*b_mm*mu_val))/10.0 if M_max>0 else 0.0
+    # hmin = sqrt( M·10^6 / (αb · b_mm · μa) )
+    hmin  = math.sqrt((M_max*1e6)/(alpha_b * b_mm * mu_val)) / 10.0 if M_max>0 else 0.0
 
     As_min      = 0.0013 * b * h * 1e2
     As_max      = 0.04   * b * h * 1e2
-    As_inf_req  = (M_inf*1e6) / (fyd*0.9*d_utile*10) if M_inf>0 else 0.0
-    As_sup_req  = (M_sup*1e6) / (fyd*0.9*d_utile*10) if M_sup>0 else 0.0
+    # A_s demandé (mm²) : M*10^6 / (fyd · 0.9 · d_mm)
+    As_inf_req  = (M_inf*1e6) / ( (fyd) * 0.9 * d_mm ) if M_inf>0 else 0.0
+    As_sup_req  = (M_sup*1e6) / ( (fyd) * 0.9 * d_mm ) if M_sup>0 else 0.0
 
-    tau   = (V*1e3) / (0.75*b*h*100) if V>0 else 0.0
+    tau   = (V*1e3) / (0.75*b_mm*h_mm) if V>0 else 0.0
     tau_1 = 0.016 * fck_cube / 1.05
     tau_2 = 0.032 * fck_cube / 1.05
     tau_4 = 0.064 * fck_cube / 1.05
@@ -264,7 +247,7 @@ def generer_rapport_pdf(
     # Fichier sortie
     out_dir = "/mnt/data"
     try: os.makedirs(out_dir, exist_ok=True)
-    except Exception: out_dir = tempfile.gettempdir()
+    except Exception: import tempfile as _tf; out_dir = _tf.gettempdir()
     proj = (nom_projet or "XXX")[:3].upper()
     part = (partie or "Partie").strip().replace(" ", "_")
     ind  = (indice or "0")
@@ -278,7 +261,7 @@ def generer_rapport_pdf(
     flow = []
     tmpdir = tempfile.mkdtemp(prefix="pdf_eq_")
 
-    # Largeurs pour les 4 colonnes
+    # Largeurs colonnes 4-col
     COL_W_ARM = content_width * 0.42
     COL_W_OK  = content_width * 0.08
 
@@ -346,62 +329,52 @@ def generer_rapport_pdf(
         # 3. Dimensionnement
         flow.append(Paragraph("<u>3. Dimensionnement</u>", S["Hmain"]))
 
-        # 3.1 h_min — équation + comparaison
+        # 3.1 Vérification de la hauteur utile
         flow.append(Paragraph("3.1 Vérification de la hauteur utile", S["Hnorm"]))
+        # hmin encadré : = XX.X cm < 65 - 5 = 60 cm (sans décimales sur 65/5/60)
         tex_hmin = (
             r"h_\mathrm{min}=\sqrt{\frac{"
-            + num2(M_max) + r"\cdot 10^{6}}{"
-            + num2(kb) + r"\cdot " + num0(b_mm) + r"\cdot " + num4(mu_val) + r"}}"
-            + r" = " + num1(hmin) + r"\ \mathrm{cm}"
-            + r"\;\ " + ("<" if hmin < (h - enrobage) else ">")
-            + r"\ " + num1(h) + r" - " + num1(enrobage) + r" = " + num1(h - enrobage) + r"\ \mathrm{cm}"
+            + num1(M_max) + r"\cdot 10^{6}}{"
+            + num2(alpha_b) + r"\cdot " + num0(b_mm) + r"\cdot " + num4(mu_val) + r"}}"
+            + r" = " + num1(hmin) + r"\ \mathrm{cm}\;\; <\; "
+            + num0(h) + r" - " + num0(enrobage) + r" = " + num0(h - enrobage) + r"\ \mathrm{cm}"
         )
-        flow.append(make_row(eq_flowable(tex_hmin, content_width-12*mm, tmpdir, padd=(3,6,1,1)),
-                             S, content_width, ""))
-
-        ok_h = (hmin + enrobage) <= h
-        flow.append(make_row(
-            Paragraph(f"h<sub>min</sub> + enrob. = {fr1(hmin+enrobage)} cm ≤ h = {fr1(h)} cm", S["Eq"]),
-            S, content_width, ok_bad_html(ok_h)
-        ))
+        flow.append(eq_flowable(tex_hmin, content_width-12*mm, tmpdir))
         flow.append(Spacer(1, 6))
 
-        # 3.2 Armatures — M_inf (gauche) / M_sup (droite)
+        # 3.2 Calcul des armatures (4 colonnes) — inf à gauche, sup à droite
         flow.append(Paragraph("3.2 Calcul des armatures", S["Hnorm"]))
 
         def bloc_arm(M_val, As_req, titre, n_as, o_as):
             parts = [Paragraph(titre, S["Hsub"])]
-            ok_val = None
             if M_val and M_val > 0:
-                # Formule sans “·10” affiché
+                # A_s = M·10^6 / (333 · 0.9 · d_mm)
                 tex = (
-                    r"A_{s}=\dfrac{" + num2(M_val) + r"\cdot 10^{6}}{"
-                    + as_int_str(fyd) + r"\cdot 0.9\cdot " + as_int_str(d_mm) + r"}"
-                    + r" = " + num1(As_req) + r"\ \mathrm{mm^2}"
+                    r"A_{s}=\dfrac{"
+                    + num1(M_val) + r"\cdot 10^{6}}{"
+                    + num0(round(fyd)) + r"\cdot 0.9\cdot " + num0(d_mm) + r"}"
+                    + r" = " + num0(As_req)
+                    + r"\ \;\;<\;\; "
                 )
-                # comparaison avec As choisi si présent
-                As_ch = None
+                # Comparaison : priorité au choisi ; sinon A_s,max
                 if n_as and o_as:
                     As_ch = float(n_as) * math.pi * (float(o_as)/2.0)**2
-                    tex += (r"\;\ " + ("<" if As_req <= As_ch else ">") + r"\ " + num0(As_ch) + r"\ \mathrm{mm^2}")
-                parts.append(eq_flowable(tex, COL_W_ARM-12*mm, tmpdir, padd=(3,6,1,1)))
-                parts.append(Paragraph(f"A<sub>s,min</sub> = {fr0(As_min)} mm²", S["Eq"]))
-                parts.append(Paragraph(f"A<sub>s,max</sub> = {fr0(As_max)} mm²", S["Eq"]))
-                if As_ch is not None:
+                    tex += num0(As_ch) + r"\ \mathrm{mm^{2}}"
                     ok_val = (As_min <= As_ch <= As_max) and (As_ch >= As_req)
-                    parts.append(Paragraph(
-                        f"On prend : {int(n_as)}Ø{int(o_as)} → {fr0(As_ch)} mm²", S["Blue"]))
+                else:
+                    tex += num0(As_max) + r"\ \mathrm{mm^{2}}"
+                    ok_val = None
+                parts.append(eq_flowable(tex, COL_W_ARM-12*mm, tmpdir))
             else:
+                ok_val = None
                 parts.append(Paragraph("—", S["Eq"]))
             return parts, ok_val
 
-        # Inversé : inf à gauche, sup à droite
         inf_parts, ok_inf = bloc_arm(M_inf, As_inf_req, "Armatures inférieures", n_as_inf, o_as_inf)
         sup_parts, ok_sup = bloc_arm(M_sup, As_sup_req, "Armatures supérieures", n_as_sup, o_as_sup)
 
         t_arm = Table(
-            [[inf_parts, Paragraph(ok_bad_html(ok_inf), S["Center"]),
-              sup_parts, Paragraph(ok_bad_html(ok_sup), S["Center"])]],
+            [[inf_parts, ok_cell(ok_inf, S), sup_parts, ok_cell(ok_sup, S)]],
             colWidths=[COL_W_ARM, COL_W_OK, COL_W_ARM, COL_W_OK],
             style=TableStyle([
                 ("VALIGN", (0,0), (-1,-1), "TOP"),
@@ -414,68 +387,57 @@ def generer_rapport_pdf(
         flow.append(t_arm)
         flow.append(Spacer(1, 6))
 
-        # 3.x Cisaillement & étriers
+        # 3.3 Effort tranchant & étriers
         if V > 0:
             flow.append(Paragraph("Vérification de l'effort tranchant", S["Hnorm"]))
-
-            # Limite active
-            if   tau <= tau_1: lim_lab, lim_val, ok_tau = "τ_adm I",  tau_1, True
-            elif tau <= tau_2: lim_lab, lim_val, ok_tau = "τ_adm II", tau_2, True
-            elif tau <= tau_4: lim_lab, lim_val, ok_tau = "τ_adm IV", tau_4, True
-            else:              lim_lab, lim_val, ok_tau = "τ_adm IV", tau_4, False
-
+            # τ encadré, résultat sans unité puis comparaison avec unité
+            if   tau <= tau_1: lim_lab, lim_val = "τ_{adm\ I}",  tau_1
+            elif tau <= tau_2: lim_lab, lim_val = "τ_{adm\ II}", tau_2
+            elif tau <= tau_4: lim_lab, lim_val = "τ_{adm\ IV}", tau_4
+            else:              lim_lab, lim_val = "τ_{adm\ IV}", tau_4
             tex_tau = (
-                r"\tau=\dfrac{" + num2(V) + r"\cdot 10^{3}}{0.75\cdot "
+                r"\tau=\dfrac{"
+                + num1(V) + r"\cdot 10^{3}}{0.75\cdot "
                 + num0(b_mm) + r"\cdot " + num0(h_mm) + r"}"
-                + r" = " + num2(tau) + r"\ \mathrm{N/mm^{2}}"
-                + r"\;\ " + ("<" if tau <= lim_val else ">") + r"\ " + num2(lim_val) + r"\ \mathrm{N/mm^{2}}"
+                + r" = " + num2(tau)
+                + r"\ \;\;<\;\; " + lim_lab + r" = " + num2(lim_val) + r"\ \mathrm{N/mm^{2}}"
             )
-            flow.append(make_row(eq_flowable(tex_tau, content_width-12*mm, tmpdir, padd=(3,6,1,1)),
-                                 S, content_width, ""))
-
-            flow.append(make_row(Paragraph(
-                (f"τ = {fr2(tau)} N/mm² < {lim_lab} = {fr2(lim_val)} N/mm²") if ok_tau
-                else (f"τ = {fr2(tau)} N/mm² > {lim_lab} = {fr2(lim_val)} N/mm²"), S["Eq"]),
-                S, content_width, ok_bad_html(ok_tau)
-            ))
+            flow.append(eq_flowable(tex_tau, content_width-12*mm, tmpdir))
             flow.append(Spacer(1, 6))
 
-            # Étriers (normal) et réduits — 4 colonnes
+            # Étriers / Étriers réduits (4 colonnes)
             def bloc_etriers(Vval, titre, n_br, phi, pas):
                 parts = [Paragraph(titre, S["Hsub"])]
-                ok_pas = None
                 if Vval and Vval > 0:
-                    n_br_i = int(n_br or 1)
+                    n_br_i = int(n_br or 2)
                     phi_i  = int(phi or 8)
-                    A_st_val = float(n_br_i) * math.pi * (float(phi_i)/2.0)**2  # calc. identique
-                    s_th = (A_st_val * fyd * d_mm) / (Vval * 1e4)
-
-                    # Affiche n·2·π·r² (r = Ø/2), constantes entières
+                    r_i    = phi_i / 2.0
+                    A_st   = n_br_i * math.pi * (r_i**2)       # n_br · π · r²
+                    s_th   = (A_st * (int(to_float(fyk))/1.5) * d_mm) / (Vval * 1e3)  # affichage 10^3
                     texs = (
                         r"s_\mathrm{th}=\dfrac{("
-                        + f"{n_br_i}" + r"\cdot 2\cdot \pi\cdot r^{2})\cdot "
-                        + as_int_str(fyd) + r"\cdot " + as_int_str(d_mm) + r"}{"
-                        + num2(Vval) + r"\cdot 10^{4}}"
-                        + r" = " + num1(s_th) + r"\ \mathrm{cm}"
+                        + str(n_br_i) + r"\cdot \pi \cdot " + num0(r_i) + r"^{2})\cdot "
+                        + num0(round(int(to_float(fyk))/1.5)) + r"\cdot " + num0(d_mm) + r"}{"
+                        + num1(Vval) + r"\cdot 10^{3}}"
+                        + r" = " + num1(s_th)
+                        + r"\ \;\;<\;\; " + (num1(pas) if pas is not None else "15") + r"\ \mathrm{cm}"
                     )
-                    if pas is not None:
-                        texs += r"\;\ " + ("<" if s_th <= pas else ">") + r"\ " + num1(pas) + r"\ \mathrm{cm}"
-                    parts.append(eq_flowable(texs, COL_W_ARM-12*mm, tmpdir, padd=(3,6,1,1)))
-
-                    if pas is not None:
-                        ok_pas = pas <= s_th
+                    parts.append(eq_flowable(texs, COL_W_ARM-12*mm, tmpdir))
+                    ok_pas = (pas is not None) and (pas <= s_th)
+                    # Conclusion sans "(pas théorique = …)"
+                    if phi and pas is not None:
                         parts.append(Paragraph(
-                            f"On prend : 1 étrier – Ø{phi_i} – {fr1(pas)} cm", S["Blue"]))  # pas de parenthèse
+                            f"On prend : {1} étrier – Ø{phi_i} – {fr1(pas)} cm", S["Blue"]))
+                    return parts, ok_pas
                 else:
                     parts.append(Paragraph("—", S["Eq"]))
-                return parts, ok_pas
+                    return parts, None
 
             e_parts,  ok_e  = bloc_etriers(V,     "Calcul des étriers",         n_branches_etrier,   o_etrier,   pas_etrier)
             er_parts, ok_er = bloc_etriers(V_lim, "Calcul des étriers réduits", n_branches_etrier_r, o_etrier_r, pas_etrier_r) if (V_lim>0) else ([Paragraph("—", S["Center"])], None)
 
             t_et = Table(
-                [[e_parts, Paragraph(ok_bad_html(ok_e), S["Center"]),
-                  er_parts, Paragraph(ok_bad_html(ok_er), S["Center"])]],
+                [[e_parts, ok_cell(ok_e, S), er_parts, ok_cell(ok_er, S)]],
                 colWidths=[COL_W_ARM, COL_W_OK, COL_W_ARM, COL_W_OK],
                 style=TableStyle([
                     ("VALIGN", (0,0), (-1,-1), "TOP"),
