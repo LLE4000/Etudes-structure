@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import json
 import math
+import importlib  # <— ajouté
 
 # ========= Styles blocs =========
 C_COULEURS = {"ok": "#e6ffe6", "warn": "#fffbe6", "nok": "#ffe6e6"}
@@ -77,6 +78,23 @@ def calc_pas_cm(V_kN: float, n_brins: int, phi_mm: int, d_cm: float, fyd: float)
     d_mm = d_cm * 10.0
     return (A_sv * fyd * d_mm) / (V_kN * 1e4)    # cm
 
+# ========= Wrapper d’import sécurisé (affiche la vraie ligne fautive) =========
+def _import_generateur_pdf():
+    try:
+        importlib.invalidate_caches()
+        from modules.export_pdf import generer_rapport_pdf
+        return generer_rapport_pdf
+    except SyntaxError as e:
+        st.error(f"SyntaxError dans modules/export_pdf.py (ligne {getattr(e,'lineno','?')}, colonne {getattr(e,'offset','?')})")
+        bad_line = getattr(e, 'text', '')
+        if bad_line:
+            st.code(bad_line)
+        return None
+    except Exception as e:
+        st.error("Erreur à l'import de modules/export_pdf.py")
+        st.exception(e)
+        return None
+
 def show():
     # ---------- État ----------
     if "uploaded_file" not in st.session_state:
@@ -132,7 +150,10 @@ def show():
 
     with btn5:
         if st.button("📄 Générer PDF", use_container_width=True, key="btn_pdf"):
-            from modules.export_pdf import generer_rapport_pdf
+            # from modules.export_pdf import generer_rapport_pdf  # <— remplacé
+            gen_pdf = _import_generateur_pdf()
+            if gen_pdf is None:
+                st.stop()
 
             # flags explicites pour l’export (pour cacher la partie droite)
             has_sup  = bool(st.session_state.get("ajouter_moment_sup", False) and st.session_state.get("M_sup", 0.0) > 0)
@@ -141,7 +162,7 @@ def show():
             # libellé acier type B500 / B400
             acier_label = f"B{st.session_state.get('fyk','500')}"
 
-            fichier_pdf = generer_rapport_pdf(
+            fichier_pdf = gen_pdf(
                 # --- en-tête / géométrie / sollicitations
                 nom_projet=st.session_state.get("nom_projet", ""),
                 partie=st.session_state.get("partie", ""),
