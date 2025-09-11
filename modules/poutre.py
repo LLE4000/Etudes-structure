@@ -2,7 +2,6 @@ import streamlit as st
 from datetime import datetime
 import json
 import math
-import importlib  # <— ajouté
 
 # ========= Styles blocs =========
 C_COULEURS = {"ok": "#e6ffe6", "warn": "#fffbe6", "nok": "#ffe6e6"}
@@ -78,23 +77,6 @@ def calc_pas_cm(V_kN: float, n_brins: int, phi_mm: int, d_cm: float, fyd: float)
     d_mm = d_cm * 10.0
     return (A_sv * fyd * d_mm) / (V_kN * 1e4)    # cm
 
-# ========= Wrapper d’import sécurisé (affiche la vraie ligne fautive) =========
-def _import_generateur_pdf():
-    try:
-        importlib.invalidate_caches()
-        from modules.export_pdf import generer_rapport_pdf
-        return generer_rapport_pdf
-    except SyntaxError as e:
-        st.error(f"SyntaxError dans modules/export_pdf.py (ligne {getattr(e,'lineno','?')}, colonne {getattr(e,'offset','?')})")
-        bad_line = getattr(e, 'text', '')
-        if bad_line:
-            st.code(bad_line)
-        return None
-    except Exception as e:
-        st.error("Erreur à l'import de modules/export_pdf.py")
-        st.exception(e)
-        return None
-
 def show():
     # ---------- État ----------
     if "uploaded_file" not in st.session_state:
@@ -150,10 +132,7 @@ def show():
 
     with btn5:
         if st.button("📄 Générer PDF", use_container_width=True, key="btn_pdf"):
-            # from modules.export_pdf import generer_rapport_pdf  # <— remplacé
-            gen_pdf = _import_generateur_pdf()
-            if gen_pdf is None:
-                st.stop()
+            from modules.export_pdf import generer_rapport_pdf  # ← retour à l’import direct
 
             # flags explicites pour l’export (pour cacher la partie droite)
             has_sup  = bool(st.session_state.get("ajouter_moment_sup", False) and st.session_state.get("M_sup", 0.0) > 0)
@@ -162,7 +141,7 @@ def show():
             # libellé acier type B500 / B400
             acier_label = f"B{st.session_state.get('fyk','500')}"
 
-            fichier_pdf = gen_pdf(
+            fichier_pdf = generer_rapport_pdf(
                 # --- en-tête / géométrie / sollicitations
                 nom_projet=st.session_state.get("nom_projet", ""),
                 partie=st.session_state.get("partie", ""),
@@ -170,7 +149,7 @@ def show():
                 indice=st.session_state.get("indice", ""),
                 beton=st.session_state.get("beton", ""),
                 fyk=st.session_state.get("fyk", ""),
-                acier_label=acier_label,          # <— pour afficher B500/B400 dans le tableau
+                acier_label=acier_label,          # <— pour afficher B500/B400 dans le tableau PDF
                 b=st.session_state.get("b", 0),
                 h=st.session_state.get("h", 0),
                 enrobage=st.session_state.get("enrobage", 0),
@@ -387,24 +366,16 @@ def show():
             st.markdown(f"τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim:.2f} N/mm² → {besoin}")
             close_bloc()
 
-            # ---- Détermination des étriers
+            # ---- Détermination des étriers (retour à l’affichage simple, sans rayon)
             n_etriers_cur = int(st.session_state.get("n_etriers", 1))   # = nombre d'étriers → 2 brins verticaux
             d_etrier_cur  = int(st.session_state.get("ø_etrier", 8))
             pas_cur       = float(st.session_state.get("pas_etrier", 30.0))
 
-            # calcul propre (unité cm) – on prend 2 brins par étrier
             s_th = calc_pas_cm(V_kN=V, n_brins=2*n_etriers_cur, phi_mm=d_etrier_cur, d_cm=d_utile, fyd=fyd)
-
-            # signe de comparaison théorique vs choisi (s doit être ≤ s_th)
-            signe = "≥" if s_th >= pas_cur else "<"
             etat_pas = "ok" if pas_cur <= s_th else ("warn" if pas_cur <= 30 else "nok")
 
             open_bloc("Détermination des étriers", etat_pas)
-            r_val = d_etrier_cur/2.0
-            st.markdown(
-                f"- Rayon utilisé **r = {r_val:.1f} mm**  \n"
-                f"- **s_th = {s_th:.1f} cm**  {signe}  **Pas choisi = {pas_cur:.1f} cm**"
-            )
+            st.markdown(f"**Pas théorique = {s_th:.1f} cm — Pas choisi = {pas_cur:.1f} cm**")
             close_bloc()
 
         # ---- Vérification effort tranchant réduit ----
@@ -420,19 +391,14 @@ def show():
             st.markdown(f"τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_r:.2f} N/mm² → {besoin_r}")
             close_bloc()
 
-            # Étriers réduits (même logique)
+            # Étriers réduits (retour à l’affichage simple, sans rayon)
             n_et_r_cur = int(st.session_state.get("n_etriers_r", 1))
             d_et_r_cur = int(st.session_state.get("ø_etrier_r", 8))
             pas_r_cur  = float(st.session_state.get("pas_etrier_r", 30.0))
 
             s_thr = calc_pas_cm(V_kN=V_lim, n_brins=2*n_et_r_cur, phi_mm=d_et_r_cur, d_cm=d_utile, fyd=fyd)
-            signe_r = "≥" if s_thr >= pas_r_cur else "<"
             etat_pas_r = "ok" if pas_r_cur <= s_thr else ("warn" if pas_r_cur <= 30 else "nok")
 
             open_bloc("Détermination des étriers réduits", etat_pas_r)
-            r_val_r = d_et_r_cur/2.0
-            st.markdown(
-                f"- Rayon utilisé **r = {r_val_r:.1f} mm**  \n"
-                f"- **s_th = {s_thr:.1f} cm**  {signe_r}  **Pas choisi = {pas_r_cur:.1f} cm**"
-            )
+            st.markdown(f"**Pas théorique = {s_thr:.1f} cm — Pas choisi = {pas_r_cur:.1f} cm**")
             close_bloc()
