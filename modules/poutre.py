@@ -231,7 +231,7 @@ def show():
                             value=st.session_state.get("h", 40), step=5, key="h")
         with csec3:
             st.number_input("Enrob. (cm)", min_value=0.0, max_value=100.0,
-                            value=st.session_state.get("enrobage", 5.0), step=0.5, key="enrobage"))
+                            value=st.session_state.get("enrobage", 5.0), step=0.5, key="enrobage")
 
         # Matériaux
         beton = st.session_state["beton"]
