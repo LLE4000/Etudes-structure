@@ -1,482 +1,417 @@
-# -*- coding: utf-8 -*-
-"""
-export_pdf.py — Rapport Poutre BA (corrections affichage & tailles)
-
-- h_min et τ : cadres plus grands (+10%), alignés à gauche.
-- h_min : dénominateur = k_b (2 déc.) · b(mm, 0 déc.) · μ_a (4 déc.) ; résultat sans « cm »,
-  comparaison « < h - enrob. = … cm ».
-- Armatures : A_s = … (0 déc., sans unité)  <  … mm² ; ligne “On prend : n Øφ (A mm²)”.
-- Étriers : affichage en cm (s_th/10), signe dynamique < > =, formule
-  (1 · 2 · π · r²) · 333 · d / (V · 10³) (affichage), résultat sans unité puis comparaison « … cm ».
-- τ : résultat sans unité ; comparaison avec « τ_{adm II} = … N/mm² ».
-- OK/NON colorés.
-"""
-
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
-from reportlab.lib import colors
-
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-
-from PIL import Image as PILImage
-import json, os, math, tempfile, shutil
+import streamlit as st
 from datetime import datetime
+import json
+import math
 
-# ---------------------- Réglages équations ----------------------
-EQ_IMG_WIDTH_MM = 38       # largeur visée (avant clamp)
-EQ_IMG_SCALE    = 1.20     # facteur global pour la plupart des équations
-MATH_FONTSIZE   = 14
+# ========= Styles blocs =========
+C_COULEURS = {"ok": "#e6ffe6", "warn": "#fffbe6", "nok": "#ffe6e6"}
+C_ICONES   = {"ok": "✅",       "warn": "⚠️",      "nok": "❌"}
 
-ICON_OK  = "OK"
-ICON_NOK = "NON"
-BLUE_DARK = colors.HexColor("#003366")
+def open_bloc(titre: str, etat: str = "ok"):
+    st.markdown(
+        f"""
+        <div style="
+            background-color:{C_COULEURS.get(etat,'#f6f6f6')};
+            padding:12px 14px 10px 14px;
+            border-radius:10px;
+            border:1px solid #d9d9d9;
+            margin:10px 0 12px 0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
+            <div style="font-weight:700;">{titre}</div>
+            <div style="font-size:20px;line-height:1;">{C_ICONES.get(etat,'')}</div>
+          </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-# ---------------------- Utils nombre & format -------------------
-def fr(x, nd=1):
-    if x is None or x == "":
-        return "-"
-    if isinstance(x, str):
-        x = x.strip().replace(" ", "").replace(",", ".")
+def close_bloc():
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ========= Clés à sauvegarder/charger (métier uniquement) =========
+SAVE_KEYS = {
+    # infos projet
+    "nom_projet", "partie", "date", "indice",
+    # matériaux / géométrie
+    "beton", "fyk", "b", "h", "enrobage",
+    # sollicitations
+    "M_inf", "ajouter_moment_sup", "M_sup",
+    "V", "ajouter_effort_reduit", "V_lim",
+    # armatures
+    "n_as_inf", "ø_as_inf", "n_as_sup", "ø_as_sup",
+    # étriers
+    "n_etriers", "ø_etrier", "pas_etrier",
+    "n_etriers_r", "ø_etrier_r", "pas_etrier_r",
+}
+
+# ========= Réinitialisation propre =========
+def _reset_module():
+    current_page = st.session_state.get("page")
+    st.session_state.clear()
+    if current_page:
+        st.session_state.page = current_page
+    st.rerun()
+
+# ========= Saisie décimale FR (texte seul, pas de −/+) =========
+def float_input_fr_simple(label, key, default=0.0, min_value=0.0):
+    current = float(st.session_state.get(key, default) or 0.0)
+    raw_default = st.session_state.get(f"{key}_raw", f"{current:.2f}".replace(".", ","))
+    raw = st.text_input(label, value=raw_default, key=f"{key}_raw")
     try:
-        v = float(x)
+        val = float(str(raw).strip().replace(",", "."))
     except Exception:
-        return "-"
-    s = f"{v:,.{nd}f}".replace(",", "§").replace(".", ",").replace("§", " ")
-    if s.startswith("-0,"):
-        s = s.replace("-0,", "0,")
-    return s
+        val = current
+    val = max(min_value, val)
+    st.session_state[key] = float(val)
+    return val
 
-def fr0(x): return fr(x, 0)
-def fr1(x): return fr(x, 1)
-def fr2(x): return fr(x, 2)
-def fr4(x): return fr(x, 4)
+# ========= Utilitaires métier =========
+def calc_pas_cm(V_kN: float, n_brins: int, phi_mm: int, d_cm: float, fyd: float) -> float:
+    """
+    s_th [cm] = (A_sv * fyd * d_mm) / (V_kN * 10^4)
+    avec A_sv = n_brins * pi * (phi/2)^2  [mm²]
+    d_mm = d_cm * 10
+    """
+    if V_kN <= 0 or n_brins <= 0 or phi_mm <= 0 or d_cm <= 0 or fyd <= 0:
+        return 0.0
+    A_sv = n_brins * math.pi * (phi_mm/2.0)**2   # mm²
+    d_mm = d_cm * 10.0
+    return (A_sv * fyd * d_mm) / (V_kN * 1e4)    # cm
 
-def num_from_fr(s): return s.replace(",", ".")
-def num0(x): return num_from_fr(fr0(x))
-def num1(x): return num_from_fr(fr1(x))
-def num2(x): return num_from_fr(fr2(x))
-def num4(x): return num_from_fr(fr4(x))
+def show():
+    # ---------- État ----------
+    if "uploaded_file" not in st.session_state:
+        st.session_state.uploaded_file = None
+    if "retour_accueil_demande" not in st.session_state:
+        st.session_state.retour_accueil_demande = False
 
-def to_float(x, default=0.0):
-    if x is None or x == "":
-        return float(default)
-    if isinstance(x, str):
-        x = x.strip().replace(" ", "").replace(",", ".")
-    try:
-        return float(x)
-    except Exception:
-        return float(default)
+    if st.session_state.retour_accueil_demande:
+        st.session_state.page = "Accueil"
+        st.session_state.retour_accueil_demande = False
+        st.rerun()
 
-def to_int(x, default=0):
-    if x is None or x == "":
-        return int(default)
-    if isinstance(x, str):
-        x = x.strip().replace(" ", "").replace(",", ".")
-    try:
-        return int(float(x))
-    except Exception:
-        return int(default)
+    st.markdown("## Poutre en béton armé")
 
-def as_int_str(x):
-    try:
-        return num0(round(float(x)))
-    except Exception:
-        return num0(x)
+    # ---------- Barre d’actions ----------
+    btn1, btn2, btn3, btn4, btn5 = st.columns(5)
 
-# ---------------------- Rendu équations -------------------------
-def _render_equation_png(tex_expr, out_path, fontsize=MATH_FONTSIZE, pad=0.05):
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig = plt.figure(figsize=(1, 1), dpi=250)
-    fig.patch.set_alpha(0.0)
-    ax = fig.add_axes([0, 0, 1, 1]); ax.axis("off")
-    ax.text(0.0, 0.5, f"${tex_expr}$", fontsize=fontsize, va="center", ha="left")
-    fig.savefig(out_path, dpi=250, transparent=True, bbox_inches="tight", pad_inches=pad)
-    plt.close(fig)
+    with btn1:
+        if st.button("🏠 Accueil", use_container_width=True, key="btn_home"):
+            st.session_state.retour_accueil_demande = True
+            st.rerun()
 
-def _boxed(flowable, width, padd=(3,6,1,1)):
-    L, R, T, B = padd
-    tbl = Table([[flowable]], colWidths=[width])
-    tbl.setStyle(TableStyle([
-        ("BOX", (0,0), (-1,-1), 0.75, colors.black),
-        ("LEFTPADDING",  (0,0), (-1,-1), L),
-        ("RIGHTPADDING", (0,0), (-1,-1), R),
-        ("TOPPADDING",   (0,0), (-1,-1), T),
-        ("BOTTOMPADDING",(0,0), (-1,-1), B),
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-    ]))
-    return tbl
+    with btn2:
+        if st.button("🔄 Réinitialiser", use_container_width=True, key="btn_reset"):
+            _reset_module()
 
-def eq_flowable(tex_expr, cell_width, tmpdir, padd=(3,6,1,1), scale=1.0):
-    """Rend l'équation (PNG) encadrée, largeur contrôlée; alignée à gauche."""
-    try:
-        img_path = os.path.join(tmpdir, f"eq_{abs(hash(tex_expr))}.png")
-        _render_equation_png(tex_expr, img_path, fontsize=MATH_FONTSIZE, pad=0.05)
-
-        max_w = EQ_IMG_WIDTH_MM * mm * EQ_IMG_SCALE * float(scale)
-        w = min(cell_width, max_w)
-
-        try:
-            with PILImage.open(img_path) as im:
-                px_w, px_h = im.size
-            h = w * (px_h / px_w)
-            img = Image(img_path, width=w, height=h, hAlign="LEFT")
-        except Exception:
-            img = Image(img_path, width=w, hAlign="LEFT")
-
-        return _boxed(img, w, padd=padd)
-    except Exception:
-        from reportlab.lib.styles import getSampleStyleSheet
-        return _boxed(Paragraph(f"${tex_expr}$", getSampleStyleSheet()["BodyText"]), cell_width, padd=padd)
-
-# ---------------------- Styles texte ----------------------------
-def register_fonts():
-    # Si tu mets Arial.ttf & Arial-Bold.ttf à côté du script, dé-commente ces lignes :
-    # pdfmetrics.registerFont(TTFont("Arial", "Arial.ttf"))
-    # pdfmetrics.registerFont(TTFont("Arial-Bold", "Arial-Bold.ttf"))
-    # return ("Arial", "Arial-Bold")
-    try:
-        pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSerif.ttf"))
-        pdfmetrics.registerFont(TTFont("DejaVu-Bold", "DejaVuSerif-Bold.ttf"))
-        return ("DejaVu", "DejaVu-Bold")
-    except Exception:
-        return ("Times-Roman", "Times-Bold")
-
-def get_styles():
-    base, base_b = register_fonts()
-    ss = getSampleStyleSheet()
-    black = colors.black
-    return {
-        "Body": ParagraphStyle("Body", parent=ss["BodyText"],
-                               fontName=base, fontSize=9.5, leading=12, textColor=black),
-        "Hmain": ParagraphStyle("Hmain", parent=ss["BodyText"],
-                                fontName=base_b, fontSize=10.0, leading=13,
-                                spaceBefore=6, spaceAfter=4, textColor=black),
-        "Hnorm": ParagraphStyle("Hnorm", parent=ss["BodyText"],
-                                fontName=base_b, fontSize=9.8, leading=13,
-                                spaceBefore=5, spaceAfter=3, textColor=black),
-        "Hsub": ParagraphStyle("Hsub", parent=ss["BodyText"],
-                               fontName=base_b, fontSize=9.6, leading=12.5,
-                               spaceBefore=4, spaceAfter=3, textColor=black),
-        "Eq": ParagraphStyle("Eq", parent=ss["BodyText"],
-                             fontName=base, fontSize=9.5, leading=18, textColor=black),
-        "Blue": ParagraphStyle("Blue", parent=ss["BodyText"],
-                               fontName=base_b, fontSize=9.5, leading=18, textColor=BLUE_DARK),
-        "Center": ParagraphStyle("Center", parent=ss["BodyText"],
-                                 fontName=base, fontSize=9.5, leading=12, alignment=1, textColor=black),
-        "CenterOk": ParagraphStyle("CenterOk", parent=ss["BodyText"],
-                                   fontName=base_b, fontSize=9.5, alignment=1, textColor=colors.green),
-        "CenterNo": ParagraphStyle("CenterNo", parent=ss["BodyText"],
-                                   fontName=base_b, fontSize=9.5, alignment=1, textColor=colors.red),
-    }
-
-def make_row(flowable, styles, content_width, icon_text="", ok=None):
-    col_icon = 12*mm
-    style_icon = styles["Center"]
-    if ok is True:
-        style_icon = styles["CenterOk"]
-        icon_text = ICON_OK
-    elif ok is False:
-        style_icon = styles["CenterNo"]
-        icon_text = ICON_NOK
-
-    tbl = Table([[flowable, Paragraph(icon_text, style_icon)]],
-                colWidths=[content_width - col_icon, col_icon])
-    tbl.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("ALIGN",  (1,0), (1,0), "RIGHT"),
-        ("LEFTPADDING",  (0,0), (-1,-1), 0),
-        ("RIGHTPADDING", (0,0), (-1,-1), 0),
-        ("TOPPADDING",   (0,0), (-1,-1), 0),
-        ("BOTTOMPADDING",(0,0), (-1,-1), 0),
-    ]))
-    return tbl
-
-# ---------------------- Données matériau ------------------------
-def load_beton_data():
-    here = os.path.dirname(os.path.abspath(__file__))
-    p = os.path.join(here, "..", "beton_classes.json")
-    if not os.path.exists(p):
-        p = "beton_classes.json"
-    if os.path.exists(p):
-        with open(p, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"C30/37": {"fck_cube": 37, "alpha_b": 12.96, "mu_a500": 0.1709}}
-
-# ---------------------- Génération PDF --------------------------
-def generer_rapport_pdf(
-    nom_projet="", partie="", date="", indice="",
-    beton="C30/37", fyk="500",
-    b=20, h=40, enrobage=5.0,
-    M_inf=0.0, M_sup=0.0,
-    V=0.0, V_lim=0.0,
-    n_as_inf=None, o_as_inf=None,
-    n_as_sup=None, o_as_sup=None,
-    n_branches_etrier=1, o_etrier=None, pas_etrier=None,
-    n_branches_etrier_r=1, o_etrier_r=None, pas_etrier_r=None,
-    **kwargs,
-):
-    # --- normalisation des entrées ---
-    b, h, enrobage = to_float(b), to_float(h), to_float(enrobage)
-    M_inf, M_sup, V, V_lim = to_float(M_inf), to_float(M_sup), to_float(V), to_float(V_lim)
-    n_as_inf = to_int(n_as_inf) if n_as_inf is not None else None
-    o_as_inf = to_int(o_as_inf) if o_as_inf is not None else None
-    n_as_sup = to_int(n_as_sup) if n_as_sup is not None else None
-    o_as_sup = to_int(o_as_sup) if o_as_sup is not None else None
-    n_branches_etrier   = to_int(n_branches_etrier, 1)
-    o_etrier            = to_int(o_etrier) if o_etrier is not None else None
-    pas_etrier          = to_float(pas_etrier) if pas_etrier is not None else None
-    n_branches_etrier_r = to_int(n_branches_etrier_r, 1)
-    o_etrier_r          = to_int(o_etrier_r) if o_etrier_r is not None else None
-    pas_etrier_r        = to_float(pas_etrier_r) if pas_etrier_r is not None else None
-
-    # Matériaux
-    data = load_beton_data()
-    d = data.get(beton, {})
-    fck_cube = to_float(d.get("fck_cube", 37))
-    alpha_b_json = to_float(d.get("alpha_b", 12.96))
-    # Compatibilité ancienne/ancienne : si alpha_b_json est < 2, on suppose que c'était 0.72
-    kb = alpha_b_json if alpha_b_json > 2 else round(alpha_b_json * 18.0, 2)
-    mu_val   = to_float(d.get(f"mu_a{int(to_float(fyk))}", d.get("mu_a500", 0.1709)))
-    fyd      = int(to_float(fyk)) / 1.5  # 500/1.5 -> 333.3…
-
-    # Géométrie
-    d_utile = h - enrobage
-    b_mm, h_mm, d_mm = b*10.0, h*10.0, d_utile*10.0
-
-    # Calculs “métier”
-    M_max = max(float(M_inf or 0.0), float(M_sup or 0.0))
-    hmin  = math.sqrt((M_max*1e6)/(kb*b_mm*mu_val))/10.0 if M_max>0 else 0.0
-
-    As_min      = 0.0013 * b * h * 1e2
-    As_max      = 0.04   * b * h * 1e2
-    As_inf_req  = (M_inf*1e6) / (fyd*0.9*d_utile*10) if M_inf>0 else 0.0
-    As_sup_req  = (M_sup*1e6) / (fyd*0.9*d_utile*10) if M_sup>0 else 0.0
-
-    tau   = (V*1e3) / (0.75*b*h*100) if V>0 else 0.0
-    tau_1 = 0.016 * fck_cube / 1.05
-    tau_2 = 0.032 * fck_cube / 1.05
-    tau_4 = 0.064 * fck_cube / 1.05
-
-    # Fichier sortie
-    out_dir = "/mnt/data"
-    try: os.makedirs(out_dir, exist_ok=True)
-    except Exception: out_dir = tempfile.gettempdir()
-    proj = (nom_projet or "XXX")[:3].upper()
-    part = (partie or "Partie").strip().replace(" ", "_")
-    ind  = (indice or "0")
-    date_str = datetime.now().strftime("%Y%m%d")
-    out_path = os.path.join(out_dir, f"{proj}_{part}_#{ind}_{date_str}.pdf")
-
-    # Doc & styles
-    leftM, rightM, topM, botM = 14*mm, 14*mm, 12*mm, 12*mm
-    content_width = A4[0] - leftM - rightM
-    S = get_styles()
-    flow = []
-    tmpdir = tempfile.mkdtemp(prefix="pdf_eq_")
-
-    # Largeurs pour les tableaux 4 colonnes
-    COL_W_ARM = content_width * 0.42
-    COL_W_OK  = content_width * 0.08
-
-    try:
-        doc = SimpleDocTemplate(out_path, pagesize=A4,
-                                leftMargin=leftM, rightMargin=rightM,
-                                topMargin=topM, bottomMargin=botM)
-
-        # En-tête
-        flow.append(Table(
-            [
-                ["Projet :", nom_projet or "—", "Date :", date or datetime.today().strftime("%d/%m/%Y")],
-                ["Partie :", partie or "—", "Indice :", indice or "—"],
-            ],
-            colWidths=[16*mm, content_width*0.58, 16*mm, content_width*0.26],
-            style=TableStyle([
-                ("FONTNAME", (0,0), (-1,-1), "Times-Roman"),
-                ("FONTSIZE", (0,0), (-1,-1), 9.5),
-                ("BOTTOMPADDING", (0,0), (-1,-1), 2),
-                ("ALIGN", (0,0), (-1,-1), "LEFT"),
-                ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-            ])
-        ))
-        flow.append(Spacer(1, 3))
-
-        # 1. Caractéristiques
-        flow.append(Paragraph("<u>1. Caractéristiques de la poutre</u>", S["Hmain"]))
-        flow.append(Table(
-            [
-                ["Classe de béton", beton, "Armature", f"{int(to_float(fyk))} N/mm²"],
-                ["Largeur: b", f"{fr1(b)} cm", "Hauteur: h", f"{fr1(h)} cm"],
-                ["Enrobage: c", f"{fr1(enrobage)} cm", "Hauteur utile: d", f"{fr1(d_utile)} cm"],
-            ],
-            colWidths=[34*mm, content_width/2-34*mm, 34*mm, content_width/2-34*mm],
-            style=TableStyle([
-                ("GRID", (0,0), (-1,-1), 0.25, colors.black),
-                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f6f6f6")),
-                ("FONTNAME", (0,0), (-1,-1), "Times-Roman"),
-                ("FONTSIZE", (0,0), (-1,-1), 9.5),
-                ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-            ])
-        ))
-        flow.append(Spacer(1, 5))
-
-        # 2. Sollicitations
-        flow.append(Paragraph("<u>2. Sollicitations</u>", S["Hmain"]))
-        flow.append(Table(
-            [
-                ["Moment inférieur M", f"{fr1(M_inf)} kNm" if (M_inf>0) else "—",
-                 "Moment supérieur M_sup", f"{fr1(M_sup)} kNm" if (M_sup>0) else "—"],
-                ["Effort tranchant V", f"{fr1(V)} kN" if (V>0) else "—",
-                 "Effort tranchant réduit V_réduit", f"{fr1(V_lim)} kN" if (V_lim>0) else "—"],
-            ],
-            colWidths=[48*mm, content_width/2-48*mm, 58*mm, content_width/2-58*mm],
-            style=TableStyle([
-                ("GRID", (0,0), (-1,-1), 0.25, colors.black),
-                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f6f6f6")),
-                ("FONTNAME", (0,0), (-1,-1), "Times-Roman"),
-                ("FONTSIZE", (0,0), (-1,-1), 9.5),
-                ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-            ])
-        ))
-        flow.append(Spacer(1, 6))
-
-        # 3. Dimensionnement
-        flow.append(Paragraph("<u>3. Dimensionnement</u>", S["Hmain"]))
-
-        # 3.1 h_min — cadre agrandi et aligné gauche
-        flow.append(Paragraph("3.1 Vérification de la hauteur utile", S["Hnorm"]))
-        tex_hmin = (
-            r"h_\mathrm{min}=\sqrt{\frac{"
-            + num1(M_max) + r"\cdot 10^{6}}{"
-            + num2(kb) + r"\cdot " + num0(b_mm) + r"\cdot " + num4(mu_val) + r"}}"
-            + r" = " + num1(hmin)
-            + r"\ \;\; <\ \; " + num0(h) + r" - " + num0(enrobage) + r" = " + num0(h - enrobage) + r"\ \mathrm{cm}"
+    with btn3:
+        payload = {k: st.session_state[k] for k in SAVE_KEYS if k in st.session_state}
+        st.download_button(
+            label="💾 Enregistrer",
+            data=json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8"),
+            file_name="poutre_ba.json",
+            mime="application/json",
+            use_container_width=True,
+            key="btn_save_dl"
         )
-        flow.append(make_row(eq_flowable(tex_hmin, content_width-12*mm, tmpdir, padd=(3,6,1,1), scale=1.1),
-                             S, content_width, ok=None))
-        flow.append(Spacer(1, 6))
 
-        # 3.2 Armatures — 4 colonnes
-        flow.append(Paragraph("3.2 Calcul des armatures", S["Hnorm"]))
+    with btn4:
+        if st.button("📂 Ouvrir", use_container_width=True, key="btn_open_toggle"):
+            st.session_state["show_open_uploader"] = not st.session_state.get("show_open_uploader", False)
 
-        def bloc_arm(M_val, As_req, titre, n_as, o_as):
-            parts = [Paragraph(titre, S["Hsub"])]
-            ok_val = None
-            if M_val and M_val > 0:
-                tex = (
-                    r"A_{s}=\dfrac{" + num1(M_val) + r"\cdot 10^{6}}{"
-                    + as_int_str(fyd) + r"\cdot 0.9\cdot " + as_int_str(d_mm) + r"}"
-                    + r" = " + num0(As_req) + r"\ \;\; <\ \; " + num0(As_max) + r"\ \mathrm{mm^2}"
+        if st.session_state.get("show_open_uploader", False):
+            uploaded = st.file_uploader("Choisir un fichier JSON", type=["json"],
+                                        label_visibility="collapsed", key="open_uploader")
+            if uploaded is not None:
+                data = json.load(uploaded)
+                for k, v in data.items():
+                    if k in SAVE_KEYS:
+                        st.session_state[k] = v
+                st.session_state["show_open_uploader"] = False
+                st.success("Fichier chargé.")
+                st.rerun()
+
+    with btn5:
+        if st.button("📄 Générer PDF", use_container_width=True, key="btn_pdf"):
+            from modules.export_pdf import generer_rapport_pdf
+
+            # flags explicites pour l’export (pour cacher la partie droite)
+            has_sup  = bool(st.session_state.get("ajouter_moment_sup", False) and st.session_state.get("M_sup", 0.0) > 0)
+            has_vlim = bool(st.session_state.get("ajouter_effort_reduit", False) and st.session_state.get("V_lim", 0.0) > 0)
+
+            # libellé acier type B500 / B400
+            acier_label = f"B{st.session_state.get('fyk','500')}"
+
+            fichier_pdf = generer_rapport_pdf(
+                # --- en-tête / géométrie / sollicitations
+                nom_projet=st.session_state.get("nom_projet", ""),
+                partie=st.session_state.get("partie", ""),
+                date=st.session_state.get("date", ""),
+                indice=st.session_state.get("indice", ""),
+                beton=st.session_state.get("beton", ""),
+                fyk=st.session_state.get("fyk", ""),
+                acier_label=acier_label,          # <— pour afficher B500/B400 dans le tableau
+                b=st.session_state.get("b", 0),
+                h=st.session_state.get("h", 0),
+                enrobage=st.session_state.get("enrobage", 0),
+
+                M_inf=st.session_state.get("M_inf", 0.0),
+                M_sup=st.session_state.get("M_sup", 0.0),
+                V=st.session_state.get("V", 0.0),
+                V_lim=st.session_state.get("V_lim", 0.0),
+
+                # --- CHOIX (→ affichés dans le PDF)
+                n_as_inf=st.session_state.get("n_as_inf"),
+                o_as_inf=st.session_state.get("ø_as_inf"),
+                n_as_sup=st.session_state.get("n_as_sup"),
+                o_as_sup=st.session_state.get("ø_as_sup"),
+
+                n_etriers=st.session_state.get("n_etriers"),
+                o_etrier=st.session_state.get("ø_etrier"),
+                pas_etrier=st.session_state.get("pas_etrier"),
+
+                n_etriers_r=st.session_state.get("n_etriers_r"),
+                o_etrier_r=st.session_state.get("ø_etrier_r"),
+                pas_etrier_r=st.session_state.get("pas_etrier_r"),
+
+                # flags d’affichage pour masquer complètement la colonne droite
+                has_sup=has_sup,
+                has_vlim=has_vlim,
+            )
+
+            with open(fichier_pdf, "rb") as f:
+                st.download_button(
+                    label="⬇️ Télécharger le rapport PDF",
+                    data=f,
+                    file_name=fichier_pdf,
+                    mime="application/pdf",
+                    use_container_width=True,
                 )
-                parts.append(eq_flowable(tex, COL_W_ARM-12*mm, tmpdir, padd=(3,6,1,1)))
-                parts.append(Paragraph(f"A<sub>s,min</sub> = {fr0(As_min)} mm²", S["Eq"]))
-                parts.append(Paragraph(f"A<sub>s,max</sub> = {fr0(As_max)} mm²", S["Eq"]))
-                if n_as and o_as:
-                    As_ch = float(n_as) * math.pi * (float(o_as)/2.0)**2
-                    ok_val = (As_min <= As_ch <= As_max) and (As_ch >= As_req)
-                    parts.append(Paragraph(
-                        f"On prend : {int(n_as)} Ø{int(o_as)} ({fr0(As_ch)} mm²)", S["Blue"]))
+            st.success("✅ Rapport généré")
+
+    # ---------- Données béton ----------
+    with open("beton_classes.json", "r") as f:
+        beton_data = json.load(f)
+
+    input_col_gauche, result_col_droite = st.columns([2, 3])
+
+    # ---------- COLONNE GAUCHE ----------
+    with input_col_gauche:
+        st.markdown("### Informations sur le projet")
+        afficher_infos = st.checkbox("Ajouter les informations du projet", value=False)
+        if afficher_infos:
+            st.text_input("", placeholder="Nom du projet", key="nom_projet")
+            st.text_input("", placeholder="Partie", key="partie")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.text_input("", placeholder="Date (jj/mm/aaaa)",
+                              value=st.session_state.get("date", datetime.today().strftime("%d/%m/%Y")), key="date")
+            with c2:
+                st.text_input("", placeholder="Indice", value=st.session_state.get("indice", "0"), key="indice")
+        else:
+            st.session_state.setdefault("date", datetime.today().strftime("%d/%m/%Y"))
+
+        st.markdown("### Caractéristiques de la poutre")
+        cbet, cacier = st.columns(2)
+        with cbet:
+            options = list(beton_data.keys())
+            default_beton = options[min(2, len(options)-1)]
+            current_beton = st.session_state.get("beton", default_beton)
+            st.selectbox("Classe de béton", options, index=options.index(current_beton), key="beton")
+        with cacier:
+            acier_opts = ["400", "500"]
+            cur_fyk = st.session_state.get("fyk", "500")
+            st.selectbox("Qualité d'acier [N/mm²]", acier_opts, index=acier_opts.index(cur_fyk), key="fyk")
+
+        csec1, csec2, csec3 = st.columns(3)
+        with csec1:
+            st.number_input("Larg. [cm]", min_value=5, max_value=1000,
+                            value=st.session_state.get("b", 20), step=5, key="b")
+        with csec2:
+            st.number_input("Haut. [cm]", min_value=5, max_value=1000,
+                            value=st.session_state.get("h", 40), step=5, key="h")
+        with csec3:
+            st.number_input("Enrob. (cm)", min_value=0.0, max_value=100.0,
+                            value=st.session_state.get("enrobage", 5.0), step=0.5, key="enrobage"))
+
+        # Matériaux
+        beton = st.session_state["beton"]
+        fck       = beton_data[beton]["fck"]
+        fck_cube  = beton_data[beton]["fck_cube"]
+        alpha_b   = beton_data[beton]["alpha_b"]
+        mu_val    = beton_data[beton][f"mu_a{st.session_state['fyk']}"]
+        fyd       = int(st.session_state["fyk"]) / 1.5
+
+        st.markdown("### Sollicitations")
+        cmom, cev  = st.columns(2)
+        with cmom:
+            M_inf = float_input_fr_simple("Moment inférieur M (kNm)", key="M_inf", default=0.0, min_value=0.0)
+            m_sup = st.checkbox("Ajouter un moment supérieur", key="ajouter_moment_sup",
+                                value=st.session_state.get("ajouter_moment_sup", False))
+            if m_sup:
+                M_sup = float_input_fr_simple("Moment supérieur M_sup (kNm)", key="M_sup", default=0.0, min_value=0.0)
             else:
-                parts.append(Paragraph("—", S["Eq"]))
-            return parts, ok_val
+                M_sup = 0.0
+                if "M_sup" in st.session_state:
+                    del st.session_state["M_sup"]
+        with cev:
+            V = float_input_fr_simple("Effort tranchant V (kN)", key="V", default=0.0, min_value=0.0)
+            v_sup = st.checkbox("Ajouter un effort tranchant réduit", key="ajouter_effort_reduit",
+                                value=st.session_state.get("ajouter_effort_reduit", False))
+            if v_sup:
+                V_lim = float_input_fr_simple("Effort tranchant réduit V_réduit (kN)", key="V_lim", default=0.0, min_value=0.0)
+            else:
+                V_lim = 0.0
+                if "V_lim" in st.session_state:
+                    del st.session_state["V_lim"]
 
-        # inf à gauche, sup à droite
-        inf_parts, ok_inf = bloc_arm(M_inf, As_inf_req, "Armatures inférieures", n_as_inf, o_as_inf)
-        sup_parts, ok_sup = bloc_arm(M_sup, As_sup_req, "Armatures supérieures", n_as_sup, o_as_sup)
+    # ---------- COLONNE DROITE ----------
+    with result_col_droite:
+        st.markdown("### Dimensionnement")
 
-        t_arm = Table(
-            [[inf_parts, Paragraph(ICON_OK if ok_inf else ICON_NOK if ok_inf is not None else "—",
-                                   S["CenterOk"] if ok_inf else S["CenterNo"] if ok_inf is not None else S["Center"]),
-              sup_parts, Paragraph(ICON_OK if ok_sup else ICON_NOK if ok_sup is not None else "—",
-                                   S["CenterOk"] if ok_sup else S["CenterNo"] if ok_sup is not None else S["Center"])]],
-            colWidths=[COL_W_ARM, COL_W_OK, COL_W_ARM, COL_W_OK],
-            style=TableStyle([
-                ("VALIGN", (0,0), (-1,-1), "TOP"),
-                ("LEFTPADDING",  (0,0), (-1,-1), 2),
-                ("RIGHTPADDING", (0,0), (-1,-1), 2),
-                ("TOPPADDING",   (0,0), (-1,-1), 1),
-                ("BOTTOMPADDING",(0,0), (-1,-1), 1),
-            ])
+        # ---- Vérification de la hauteur ----
+        M_max      = max(st.session_state.get("M_inf", 0.0), st.session_state.get("M_sup", 0.0))
+        b = st.session_state["b"]; h = st.session_state["h"]; enrobage = st.session_state["enrobage"]
+        hmin_calc  = math.sqrt((M_max * 1e6) / (alpha_b * b * 10 * mu_val)) / 10  # cm
+        etat_h     = "ok" if hmin_calc + enrobage <= h else "nok"
+        open_bloc("Vérification de la hauteur", etat_h)
+        st.markdown(f"**h,min** = {hmin_calc:.1f} cm  \n"
+                    f"h,min + enrobage = {hmin_calc + enrobage:.1f} cm ≤ h = {h} cm")
+        close_bloc()
+
+        # ---- Données section (communes) ----
+        d_utile = h - enrobage  # cm
+        As_min  = 0.0013 * b * h * 1e2
+        As_max  = 0.04   * b * h * 1e2
+
+        # --- Armatures inférieures ---
+        M_inf = st.session_state.get("M_inf", 0.0)
+        As_inf = (M_inf * 1e6) / (fyd * 0.9 * d_utile * 10)
+        diam_opts = [6, 8, 10, 12, 16, 20, 25, 32, 40]
+        n_inf_cur = st.session_state.get("n_as_inf", 2)
+        diam_inf_cur = st.session_state.get("ø_as_inf", 16)
+        As_inf_choisi = n_inf_cur * (math.pi * (diam_inf_cur/2)**2)
+        ok_inf = (As_min <= As_inf_choisi <= As_max) and (As_inf_choisi >= As_inf)
+        etat_inf = "ok" if ok_inf else "nok"
+        
+        open_bloc("Armatures inférieures", etat_inf)
+        ca1, ca2, ca3 = st.columns(3)
+        with ca1: st.markdown(f"**Aₛ,inf = {As_inf:.0f} mm²**")
+        with ca2: st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
+        with ca3: st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
+        
+        row1_c1, row1_c2, row1_c3 = st.columns([3, 3, 2])
+        with row1_c1:
+            st.number_input("Nb barres", min_value=1, max_value=50,
+                            value=n_inf_cur, step=1, key="n_as_inf")
+        with row1_c2:
+            st.selectbox("Ø (mm)", diam_opts,
+                         index=diam_opts.index(diam_inf_cur), key="ø_as_inf")
+        n_val = st.session_state.get("n_as_inf", n_inf_cur)
+        d_val = st.session_state.get("ø_as_inf", diam_inf_cur)
+        As_inf_choisi = n_val * (math.pi * (d_val/2)**2)
+        with row1_c3:
+            st.markdown(
+                f"<div style='margin-top:30px;font-weight:600;white-space:nowrap;'>( {As_inf_choisi:.0f} mm² )</div>",
+                unsafe_allow_html=True
         )
-        flow.append(t_arm)
-        flow.append(Spacer(1, 6))
+        close_bloc()
 
-        # 3.3 Vérification cisaillement (τ) — cadre agrandi
+        # ---- Armatures supérieures (si M_sup) ----
+        if st.session_state.get("ajouter_moment_sup", False):
+            M_sup = st.session_state.get("M_sup", 0.0)
+            As_sup = (M_sup * 1e6) / (fyd * 0.9 * d_utile * 10)
+            n_sup_cur = st.session_state.get("n_as_sup", 2)
+            diam_sup_cur = st.session_state.get("ø_as_sup", 16)
+            As_sup_choisi = n_sup_cur * (math.pi * (diam_sup_cur/2)**2)
+            ok_sup = (As_min <= As_sup_choisi <= As_max) and (As_sup_choisi >= As_sup)
+            etat_sup = "ok" if ok_sup else "nok"
+        
+            open_bloc("Armatures supérieures", etat_sup)
+            cs1, cs2, cs3 = st.columns(3)
+            with cs1: st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
+            with cs2: st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
+            with cs3: st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
+        
+            row2_c1, row2_c2, row2_c3 = st.columns([3, 3, 2])
+            with row2_c1:
+                st.number_input("Nb barres (sup.)", min_value=1, max_value=50,
+                                value=n_sup_cur, step=1, key="n_as_sup")
+            with row2_c2:
+                st.selectbox("Ø (mm) (sup.)", diam_opts,
+                             index=diam_opts.index(diam_sup_cur), key="ø_as_sup")
+            n_s = st.session_state.get("n_as_sup", n_sup_cur)
+            d_s = st.session_state.get("ø_as_sup", diam_sup_cur)
+            As_sup_choisi = n_s * (math.pi * (d_s/2)**2)
+            with row2_c3:
+                st.markdown(
+                    f"<div style='margin-top:30px;font-weight:600;white-space:nowrap;'>( {As_sup_choisi:.0f} mm² )</div>",
+                    unsafe_allow_html=True
+                )
+            close_bloc()
+
+        # ---- Vérification effort tranchant ----
+        V = st.session_state.get("V", 0.0)
+        tau_1 = 0.016 * fck_cube / 1.05
+        tau_2 = 0.032 * fck_cube / 1.05
+        tau_4 = 0.064 * fck_cube / 1.05
+
         if V > 0:
-            flow.append(Paragraph("Vérification de l'effort tranchant", S["Hnorm"]))
-            tex_tau = (
-                r"\tau=\dfrac{" + num1(V) + r"\cdot 10^{3}}{0.75\cdot "
-                + num0(b_mm) + r"\cdot " + num0(h_mm) + r"}"
-                + r" = " + num2(tau) + r"\ \;\; <\ \; " + num2(tau_2) + r"\ \mathrm{N/mm^{2}}"
-                # si tu veux choisir dynamiquement la limite : remplace num2(tau_2) par la valeur retenue
+            tau = V * 1e3 / (0.75 * b * h * 100)
+            if   tau <= tau_1: besoin, etat_tau, nom_lim, tau_lim = "Pas besoin d’étriers", "ok",  "τ_adm_I",  tau_1
+            elif tau <= tau_2: besoin, etat_tau, nom_lim, tau_lim = "Besoin d’étriers",      "ok",  "τ_adm_II", tau_2
+            elif tau <= tau_4: besoin, etat_tau, nom_lim, tau_lim = "Besoin de barres inclinées et d’étriers", "warn", "τ_adm_IV", tau_4
+            else:              besoin, etat_tau, nom_lim, tau_lim = "Pas acceptable",        "nok", "τ_adm_IV", tau_4
+
+            open_bloc("Vérification de l'effort tranchant", etat_tau)
+            st.markdown(f"τ = {tau:.2f} N/mm² ≤ {nom_lim} = {tau_lim:.2f} N/mm² → {besoin}")
+            close_bloc()
+
+            # ---- Détermination des étriers
+            n_etriers_cur = int(st.session_state.get("n_etriers", 1))   # = nombre d'étriers → 2 brins verticaux
+            d_etrier_cur  = int(st.session_state.get("ø_etrier", 8))
+            pas_cur       = float(st.session_state.get("pas_etrier", 30.0))
+
+            # calcul propre (unité cm) – on prend 2 brins par étrier
+            s_th = calc_pas_cm(V_kN=V, n_brins=2*n_etriers_cur, phi_mm=d_etrier_cur, d_cm=d_utile, fyd=fyd)
+
+            # signe de comparaison théorique vs choisi (s doit être ≤ s_th)
+            signe = "≥" if s_th >= pas_cur else "<"
+            etat_pas = "ok" if pas_cur <= s_th else ("warn" if pas_cur <= 30 else "nok")
+
+            open_bloc("Détermination des étriers", etat_pas)
+            r_val = d_etrier_cur/2.0
+            st.markdown(
+                f"- Rayon utilisé **r = {r_val:.1f} mm**  \n"
+                f"- **s_th = {s_th:.1f} cm**  {signe}  **Pas choisi = {pas_cur:.1f} cm**"
             )
-            flow.append(make_row(eq_flowable(tex_tau, content_width-12*mm, tmpdir, padd=(3,6,1,1), scale=1.1),
-                                 S, content_width, ok=None))
-            flow.append(Spacer(1, 6))
+            close_bloc()
 
-            # 3.4 Étriers (4 colonnes : normal / réduit)
-            def bloc_etriers(Vval, titre, n_br, phi, pas):
-                parts = [Paragraph(titre, S["Hsub"])]
-                ok_pas = None
-                if Vval and Vval > 0:
-                    n_br_i = int(n_br or 1)
-                    phi_i  = int(phi or 8)
-                    r_i    = phi_i/2.0
-                    # aire pour le calcul (en mm²) — n_br_i * π * r²
-                    A_st_val = float(n_br_i) * math.pi * (r_i**2)
-                    s_th_mm  = (A_st_val * fyd * d_mm) / (Vval * 1e4)  # mm
-                    s_th_cm  = s_th_mm / 10.0
-                    # comparaison avec le pas choisi s'il existe
-                    if pas is not None:
-                        sign = "<" if s_th_cm < pas else ">" if s_th_cm > pas else "="
-                        ok_pas = pas <= s_th_cm
-                        cmp_txt = r"\ \;\; " + sign + r"\ \; " + num1(pas) + r"\ \mathrm{cm}"
-                    else:
-                        cmp_txt = ""
-                    # Affichage demandé : (1 · 2 · π · r²) · 333 · d  / (V · 10^3)
-                    texs = (
-                        r"s_\mathrm{th}=\dfrac{(1\cdot 2 \cdot \pi \cdot " + num0(r_i) + r"^{2})\cdot "
-                        + as_int_str(fyd) + r"\cdot " + as_int_str(d_mm) + r"}{"
-                        + num1(Vval) + r"\cdot 10^{3}}"
-                        + r" = " + num1(s_th_cm) + cmp_txt
-                    )
-                    parts.append(eq_flowable(texs, COL_W_ARM-12*mm, tmpdir, padd=(3,6,1,1)))
-                    # phrase de prise — sans “(pas théorique = …)”
-                    if phi is not None and pas is not None:
-                        parts.append(Paragraph(
-                            f"On prend : 1 étrier – Ø{phi_i} – {fr1(pas)} cm",
-                            S["Blue"]))
-                else:
-                    parts.append(Paragraph("—", S["Eq"]))
-                return parts, ok_pas
+        # ---- Vérification effort tranchant réduit ----
+        if st.session_state.get("ajouter_effort_reduit", False) and st.session_state.get("V_lim", 0.0) > 0:
+            V_lim = st.session_state["V_lim"]
+            tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
+            if   tau_r <= tau_1: besoin_r, etat_r, nom_lim_r, tau_lim_r = "Pas besoin d’étriers", "ok",  "τ_adm_I",  tau_1
+            elif tau_r <= tau_2: besoin_r, etat_r, nom_lim_r, tau_lim_r = "Besoin d’étriers",     "ok",  "τ_adm_II", tau_2
+            elif tau_r <= tau_4: besoin_r, etat_r, nom_lim_r, tau_lim_r = "Besoin de barres inclinées et d’étriers", "warn", "τ_adm_IV", tau_4
+            else:                 besoin_r, etat_r, nom_lim_r, tau_lim_r = "Pas acceptable",       "nok", "τ_adm_IV", tau_4
 
-            e_parts, ok_e   = bloc_etriers(V,     "Calcul des étriers",         n_branches_etrier,   o_etrier,   pas_etrier)
-            er_parts, ok_er = bloc_etriers(V_lim, "Calcul des étriers réduits", n_branches_etrier_r, o_etrier_r, pas_etrier_r) if (V_lim>0) else ([Paragraph("—", S["Center"])], None)
+            open_bloc("Vérification de l'effort tranchant réduit", etat_r)
+            st.markdown(f"τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_r:.2f} N/mm² → {besoin_r}")
+            close_bloc()
 
-            t_et = Table(
-                [[e_parts, Paragraph(ICON_OK if ok_e else ICON_NOK if ok_e is not None else "—",
-                                     S["CenterOk"] if ok_e else S["CenterNo"] if ok_e is not None else S["Center"]),
-                  er_parts, Paragraph(ICON_OK if ok_er else ICON_NOK if ok_er is not None else "—",
-                                      S["CenterOk"] if ok_er else S["CenterNo"] if ok_er is not None else S["Center"])]],
-                colWidths=[COL_W_ARM, COL_W_OK, COL_W_ARM, COL_W_OK],
-                style=TableStyle([
-                    ("VALIGN", (0,0), (-1,-1), "TOP"),
-                    ("LEFTPADDING",  (0,0), (-1,-1), 2),
-                    ("RIGHTPADDING", (0,0), (-1,-1), 2),
-                    ("TOPPADDING",   (0,0), (-1,-1), 1),
-                    ("BOTTOMPADDING",(0,0), (-1,-1), 1),
-                ])
+            # Étriers réduits (même logique)
+            n_et_r_cur = int(st.session_state.get("n_etriers_r", 1))
+            d_et_r_cur = int(st.session_state.get("ø_etrier_r", 8))
+            pas_r_cur  = float(st.session_state.get("pas_etrier_r", 30.0))
+
+            s_thr = calc_pas_cm(V_kN=V_lim, n_brins=2*n_et_r_cur, phi_mm=d_et_r_cur, d_cm=d_utile, fyd=fyd)
+            signe_r = "≥" if s_thr >= pas_r_cur else "<"
+            etat_pas_r = "ok" if pas_r_cur <= s_thr else ("warn" if pas_r_cur <= 30 else "nok")
+
+            open_bloc("Détermination des étriers réduits", etat_pas_r)
+            r_val_r = d_et_r_cur/2.0
+            st.markdown(
+                f"- Rayon utilisé **r = {r_val_r:.1f} mm**  \n"
+                f"- **s_th = {s_thr:.1f} cm**  {signe_r}  **Pas choisi = {pas_r_cur:.1f} cm**"
             )
-            flow.append(t_et)
-
-        # Build
-        doc.build(flow)
-        return out_path
-
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+            close_bloc()
