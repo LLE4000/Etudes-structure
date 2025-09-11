@@ -53,6 +53,7 @@ def _reset_module():
 
 # ========= Saisie décimale FR (texte seul, pas de −/+) =========
 def float_input_fr_simple(label, key, default=0.0, min_value=0.0):
+    """Champ texte qui accepte virgule/point ; stocke un float dans st.session_state[key]."""
     current = float(st.session_state.get(key, default) or 0.0)
     raw_default = st.session_state.get(f"{key}_raw", f"{current:.2f}".replace(".", ","))
     raw = st.text_input(label, value=raw_default, key=f"{key}_raw")
@@ -63,19 +64,6 @@ def float_input_fr_simple(label, key, default=0.0, min_value=0.0):
     val = max(min_value, val)
     st.session_state[key] = float(val)
     return val
-
-# ========= Utilitaires métier =========
-def calc_pas_cm(V_kN: float, n_brins: int, phi_mm: int, d_cm: float, fyd: float) -> float:
-    """
-    s_th [cm] = (A_sv * fyd * d_mm) / (V_kN * 10^4)
-    avec A_sv = n_brins * pi * (phi/2)^2  [mm²]
-    d_mm = d_cm * 10
-    """
-    if V_kN <= 0 or n_brins <= 0 or phi_mm <= 0 or d_cm <= 0 or fyd <= 0:
-        return 0.0
-    A_sv = n_brins * math.pi * (phi_mm/2.0)**2   # mm²
-    d_mm = d_cm * 10.0
-    return (A_sv * fyd * d_mm) / (V_kN * 1e4)    # cm
 
 def show():
     # ---------- État ----------
@@ -119,8 +107,7 @@ def show():
             st.session_state["show_open_uploader"] = not st.session_state.get("show_open_uploader", False)
 
         if st.session_state.get("show_open_uploader", False):
-            uploaded = st.file_uploader("Choisir un fichier JSON", type=["json"],
-                                        label_visibility="collapsed", key="open_uploader")
+            uploaded = st.file_uploader("Choisir un fichier JSON", type=["json"], label_visibility="collapsed", key="open_uploader")
             if uploaded is not None:
                 data = json.load(uploaded)
                 for k, v in data.items():
@@ -134,13 +121,6 @@ def show():
         if st.button("📄 Générer PDF", use_container_width=True, key="btn_pdf"):
             from modules.export_pdf import generer_rapport_pdf
 
-            # flags explicites pour l’export (pour cacher la partie droite)
-            has_sup  = bool(st.session_state.get("ajouter_moment_sup", False) and st.session_state.get("M_sup", 0.0) > 0)
-            has_vlim = bool(st.session_state.get("ajouter_effort_reduit", False) and st.session_state.get("V_lim", 0.0) > 0)
-
-            # libellé acier type B500 / B400
-            acier_label = f"B{st.session_state.get('fyk','500')}"
-
             fichier_pdf = generer_rapport_pdf(
                 # --- en-tête / géométrie / sollicitations
                 nom_projet=st.session_state.get("nom_projet", ""),
@@ -149,33 +129,30 @@ def show():
                 indice=st.session_state.get("indice", ""),
                 beton=st.session_state.get("beton", ""),
                 fyk=st.session_state.get("fyk", ""),
-                acier_label=acier_label,          # <— pour afficher B500/B400 dans le tableau
                 b=st.session_state.get("b", 0),
                 h=st.session_state.get("h", 0),
                 enrobage=st.session_state.get("enrobage", 0),
-
                 M_inf=st.session_state.get("M_inf", 0.0),
                 M_sup=st.session_state.get("M_sup", 0.0),
                 V=st.session_state.get("V", 0.0),
                 V_lim=st.session_state.get("V_lim", 0.0),
-
+            
                 # --- CHOIX (→ affichés dans le PDF)
+                # armatures inférieures / supérieures
                 n_as_inf=st.session_state.get("n_as_inf"),
-                o_as_inf=st.session_state.get("ø_as_inf"),
+                o_as_inf=st.session_state.get("ø_as_inf"),   # mappe la clé 'ø_*' vers 'o_*'
                 n_as_sup=st.session_state.get("n_as_sup"),
                 o_as_sup=st.session_state.get("ø_as_sup"),
-
+            
+                # étriers (tranchant V)
                 n_etriers=st.session_state.get("n_etriers"),
                 o_etrier=st.session_state.get("ø_etrier"),
                 pas_etrier=st.session_state.get("pas_etrier"),
-
+            
+                # étriers réduits (V_lim)
                 n_etriers_r=st.session_state.get("n_etriers_r"),
                 o_etrier_r=st.session_state.get("ø_etrier_r"),
                 pas_etrier_r=st.session_state.get("pas_etrier_r"),
-
-                # flags d’affichage pour masquer complètement la colonne droite
-                has_sup=has_sup,
-                has_vlim=has_vlim,
             )
 
             with open(fichier_pdf, "rb") as f:
@@ -292,13 +269,13 @@ def show():
         As_inf_choisi = n_inf_cur * (math.pi * (diam_inf_cur/2)**2)
         ok_inf = (As_min <= As_inf_choisi <= As_max) and (As_inf_choisi >= As_inf)
         etat_inf = "ok" if ok_inf else "nok"
-
+        
         open_bloc("Armatures inférieures", etat_inf)
         ca1, ca2, ca3 = st.columns(3)
         with ca1: st.markdown(f"**Aₛ,inf = {As_inf:.0f} mm²**")
         with ca2: st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
         with ca3: st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
-
+        
         row1_c1, row1_c2, row1_c3 = st.columns([3, 3, 2])
         with row1_c1:
             st.number_input("Nb barres", min_value=1, max_value=50,
@@ -325,13 +302,13 @@ def show():
             As_sup_choisi = n_sup_cur * (math.pi * (diam_sup_cur/2)**2)
             ok_sup = (As_min <= As_sup_choisi <= As_max) and (As_sup_choisi >= As_sup)
             etat_sup = "ok" if ok_sup else "nok"
-
+        
             open_bloc("Armatures supérieures", etat_sup)
             cs1, cs2, cs3 = st.columns(3)
             with cs1: st.markdown(f"**Aₛ,sup = {As_sup:.0f} mm²**")
             with cs2: st.markdown(f"**Aₛ,min = {As_min:.0f} mm²**")
             with cs3: st.markdown(f"**Aₛ,max = {As_max:.0f} mm²**")
-
+        
             row2_c1, row2_c2, row2_c3 = st.columns([3, 3, 2])
             with row2_c1:
                 st.number_input("Nb barres (sup.)", min_value=1, max_value=50,
@@ -357,7 +334,7 @@ def show():
 
         if V > 0:
             tau = V * 1e3 / (0.75 * b * h * 100)
-            if   tau <= tau_1: besoin, etat_tau, nom_lim, tau_lim = "Pas besoin d’étriers", "ok",  "τ_adm_I",  tau_1
+            if   tau <= tau_1: besoin, etat_tau, nom_lim, tau_lim = "Pas besoin d’étriers", "ok",  "τ_adm_I", tau_1
             elif tau <= tau_2: besoin, etat_tau, nom_lim, tau_lim = "Besoin d’étriers",      "ok",  "τ_adm_II", tau_2
             elif tau <= tau_4: besoin, etat_tau, nom_lim, tau_lim = "Besoin de barres inclinées et d’étriers", "warn", "τ_adm_IV", tau_4
             else:              besoin, etat_tau, nom_lim, tau_lim = "Pas acceptable",        "nok", "τ_adm_IV", tau_4
@@ -367,30 +344,50 @@ def show():
             close_bloc()
 
             # ---- Détermination des étriers
-            n_etriers_cur = int(st.session_state.get("n_etriers", 1))   # = nombre d'étriers → 2 brins verticaux
+            # Valeurs actuelles (avec defaults)
+            n_etriers_cur = int(st.session_state.get("n_etriers", 1))
             d_etrier_cur  = int(st.session_state.get("ø_etrier", 8))
             pas_cur       = float(st.session_state.get("pas_etrier", 30.0))
-
-            # calcul propre (unité cm) – on prend 2 brins par étrier
-            s_th = calc_pas_cm(V_kN=V, n_brins=2*n_etriers_cur, phi_mm=d_etrier_cur, d_cm=d_utile, fyd=fyd)
-
-            # signe de comparaison théorique vs choisi (s doit être ≤ s_th)
-            signe = "≥" if s_th >= pas_cur else "<"
-            etat_pas = "ok" if pas_cur <= s_th else ("warn" if pas_cur <= 30 else "nok")
-
+            
+            # UI (met à jour st.session_state)
+            open_bloc("Détermination des étriers", "ok")  # on met "ok" temporairement, on le refermera puis rouvrira
+            close_bloc()  # on ferme immédiatement : on rouvrira avec le bon état
+            
+            # Widgets (ils écrivent les nouvelles valeurs)
+            ce1, ce2, ce3 = st.columns(3)
+            with ce1:
+                st.number_input("Nbr. étriers", min_value=1, max_value=8,
+                                value=n_etriers_cur, step=1, key="n_etriers")
+            with ce2:
+                diam_list = [6, 8, 10, 12]
+                idx = diam_list.index(d_etrier_cur) if d_etrier_cur in diam_list else diam_list.index(8)
+                st.selectbox("Ø étriers (mm)", diam_list, index=idx, key="ø_etrier")
+            with ce3:
+                float_input_fr_simple("Pas choisi (cm)", key="pas_etrier",
+                                      default=pas_cur, min_value=5.0)
+            
+            # Relecture des valeurs mises à jour
+            n_etriers_cur = int(st.session_state["n_etriers"])
+            d_etrier_cur  = int(st.session_state["ø_etrier"])
+            pas_cur       = float(st.session_state["pas_etrier"])
+            
+            # Recalculs avec valeurs à jour
+            Ast_e  = n_etriers_cur * 2 * math.pi * (d_etrier_cur/2)**2
+            pas_th = Ast_e * fyd * d_utile * 10 / (10 * V * 1e3)
+            
+            etat_pas = "ok" if pas_cur <= pas_th else ("warn" if pas_cur <= 30 else "nok")
+            
+            # Affichage définitif avec le bon état
             open_bloc("Détermination des étriers", etat_pas)
-            r_val = d_etrier_cur/2.0
-            st.markdown(
-                f"- Rayon utilisé **r = {r_val:.1f} mm**  \n"
-                f"- **s_th = {s_th:.1f} cm**  {signe}  **Pas choisi = {pas_cur:.1f} cm**"
-            )
+            st.markdown(f"**Pas théorique = {pas_th:.1f} cm — Pas choisi = {pas_cur:.1f} cm**")
             close_bloc()
+
 
         # ---- Vérification effort tranchant réduit ----
         if st.session_state.get("ajouter_effort_reduit", False) and st.session_state.get("V_lim", 0.0) > 0:
             V_lim = st.session_state["V_lim"]
             tau_r = V_lim * 1e3 / (0.75 * b * h * 100)
-            if   tau_r <= tau_1: besoin_r, etat_r, nom_lim_r, tau_lim_r = "Pas besoin d’étriers", "ok",  "τ_adm_I",  tau_1
+            if   tau_r <= tau_1: besoin_r, etat_r, nom_lim_r, tau_lim_r = "Pas besoin d’étriers", "ok",  "τ_adm_I", tau_1
             elif tau_r <= tau_2: besoin_r, etat_r, nom_lim_r, tau_lim_r = "Besoin d’étriers",     "ok",  "τ_adm_II", tau_2
             elif tau_r <= tau_4: besoin_r, etat_r, nom_lim_r, tau_lim_r = "Besoin de barres inclinées et d’étriers", "warn", "τ_adm_IV", tau_4
             else:                 besoin_r, etat_r, nom_lim_r, tau_lim_r = "Pas acceptable",       "nok", "τ_adm_IV", tau_4
@@ -399,19 +396,36 @@ def show():
             st.markdown(f"τ = {tau_r:.2f} N/mm² ≤ {nom_lim_r} = {tau_lim_r:.2f} N/mm² → {besoin_r}")
             close_bloc()
 
-            # Étriers réduits (même logique)
+            # Defaults réduit : Ø 8 mm et pas 30 cm
+            # ---- Détermination des étriers réduits
             n_et_r_cur = int(st.session_state.get("n_etriers_r", 1))
             d_et_r_cur = int(st.session_state.get("ø_etrier_r", 8))
             pas_r_cur  = float(st.session_state.get("pas_etrier_r", 30.0))
-
-            s_thr = calc_pas_cm(V_kN=V_lim, n_brins=2*n_et_r_cur, phi_mm=d_et_r_cur, d_cm=d_utile, fyd=fyd)
-            signe_r = "≥" if s_thr >= pas_r_cur else "<"
-            etat_pas_r = "ok" if pas_r_cur <= s_thr else ("warn" if pas_r_cur <= 30 else "nok")
-
+            
+            # Widgets
+            cr1, cr2, cr3 = st.columns(3)
+            with cr1:
+                st.number_input("Nbr. étriers (réduit)", min_value=1, max_value=8,
+                                value=n_et_r_cur, step=1, key="n_etriers_r")
+            with cr2:
+                diam_list_r = [6, 8, 10, 12]
+                idxr = diam_list_r.index(d_et_r_cur) if d_et_r_cur in diam_list_r else diam_list_r.index(8)
+                st.selectbox("Ø étriers (mm) (réduit)", diam_list_r, index=idxr, key="ø_etrier_r")
+            with cr3:
+                float_input_fr_simple("Pas choisi (cm) (réduit)", key="pas_etrier_r",
+                                      default=pas_r_cur, min_value=5.0)
+            
+            # Relecture à jour
+            n_et_r_cur = int(st.session_state["n_etriers_r"])
+            d_et_r_cur = int(st.session_state["ø_etrier_r"])
+            pas_r_cur  = float(st.session_state["pas_etrier_r"])
+            
+            # Recalculs
+            Ast_er   = n_et_r_cur * 2 * math.pi * (d_et_r_cur/2)**2
+            pas_th_r = Ast_er * fyd * d_utile * 10 / (10 * V_lim * 1e3)
+            
+            etat_pas_r = "ok" if pas_r_cur <= pas_th_r else ("warn" if pas_r_cur <= 30 else "nok")
+            
             open_bloc("Détermination des étriers réduits", etat_pas_r)
-            r_val_r = d_et_r_cur/2.0
-            st.markdown(
-                f"- Rayon utilisé **r = {r_val_r:.1f} mm**  \n"
-                f"- **s_th = {s_thr:.1f} cm**  {signe_r}  **Pas choisi = {pas_r_cur:.1f} cm**"
-            )
+            st.markdown(f"**Pas théorique = {pas_th_r:.1f} cm — Pas choisi = {pas_r_cur:.1f} cm**")
             close_bloc()
