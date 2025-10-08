@@ -11,7 +11,8 @@ from modules import (
     tableau_profiles,
     enrobage,
     garde_corps,     # existant
-    poutre_bois,     # ⬅️ nouveau module
+    poutre_bois,
+    rigidite_sol,     # ⬅️ nouveau module
 )
 
 st.set_page_config(page_title="Études Structure", layout="wide", initial_sidebar_state="collapsed")
@@ -52,6 +53,7 @@ pages = {
     "Flambement": flambement.show,
     "Tableau profilés": tableau_profiles.show,
     "Enrobage": enrobage.show,
+    "Rigidité du sol": rigidite_sol.show,
 }
 
 # ---- Affichage
