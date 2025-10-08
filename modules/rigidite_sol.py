@@ -19,7 +19,7 @@ def show():
     # -----------------------------
     # ⚙️ Page config
     # -----------------------------
-    st.set_page_config(page_title="Raideur de sol & appuis", page_icon="🧱", layout="wide")
+    st.set_page_config(page_title="Raideur élastique des sols", page_icon="🧱", layout="wide")
 
     # -----------------------------
     # 🎨 Style (proche de ta maquette) + LaTeX à GAUCHE
