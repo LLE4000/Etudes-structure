@@ -160,10 +160,10 @@ def show():
                 (
                     "1. Sol homogène",
                     "2. Sol multicouche",
-                    "3. CPT / empirique",
+                    "3. CPT",
                     "4. Plat métallique sur béton",
                     "5. Convertisseur & vérification",
-                    "6. Base de connaissances (types de sols)",
+                    "6. Abaque sols",
                 ),
                 index=0,
             )
@@ -189,7 +189,7 @@ def show():
                 with c2:
                     st.session_state.solo_w = st.number_input(
                         "w (tassement) [mm]",
-                        min_value=0.001, value=25.0, step=1.0
+                        min_value=0.001, value=20.0, step=5.0
                     )
 
             elif method.startswith("Depuis contrainte"):
