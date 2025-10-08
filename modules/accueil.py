@@ -73,6 +73,7 @@ def show():
     # ====== LIGNE 3 — Autres ======
     autres_tools = [
         {"image": "Logo_gc.png", "label": "Garde-corps", "page": "Garde-corps"},
-        {"image": "Logo_poutre_bois.png", "label": "Poutre bois", "page": "Poutre bois"},  # ⬅️ nouveau
+        {"image": "Logo_poutre_bois.png", "label": "Poutre bois", "page": "Poutre bois"},
+        {"image": "Logo_poutre_bois.png", "label": "Rigidité du sol", "page": "Rigidité du sol"},# ⬅️ nouveau
     ]
     render_section("<span style='color:#6C63FF;'>Autres</span>", autres_tools, cols_per_row=4)
